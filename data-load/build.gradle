@@ -41,6 +41,7 @@ dependencies {
 	implementation ("commons-cli:commons-cli:$commonsCliVersion")
 	implementation ("org.slf4j:slf4j-simple:$slf4jVersion")
 	testImplementation ("org.codehaus.groovy:groovy-test:$groovyVersion")
+	testImplementation ("org.mockito:mockito-core:$mockitoVersion")
 	testImplementation ("org.testcontainers:postgresql:$testContainersVersion")
 	implementation ("org.seleniumhq.selenium:selenium-firefox-driver:3.141.59")
 }

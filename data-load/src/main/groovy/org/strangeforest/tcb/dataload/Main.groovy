@@ -16,6 +16,9 @@ cli.d('Delta load')
 cli.ie('Install database extensions')
 cli.dd('Drop database objects')
 cli.cd('Create database objects')
+cli.csv('Load local ATP CSV players, rankings and matches only (no web scraping)')
+cli.from(args: 1, argName: 'Season', 'First match season to ingest')
+cli.to(args: 1, argName: 'Season', 'Last match season to ingest [default latest available]')
 cli.lt('Load all tennis data')
 cli.ln('Load new tennis data')
 cli.lp('Load additional player data')
@@ -34,7 +37,7 @@ cli.rsc('Restart connector')
 cli.help('Print this message')
 def options = cli.parse(args)
 
-if (options && (options.ie || options.dd || options.cd || options.lt || options.ln || options.lp || options.la || options.nr || options.nt || options.el || options.rc || options.rr || options.rp || options.ip || options.ff || options.vc || options.cc || options.rsc)) {
+if (options && (options.csv || options.ie || options.dd || options.cd || options.lt || options.ln || options.lp || options.la || options.nr || options.nt || options.el || options.rc || options.rr || options.rp || options.ip || options.ff || options.vc || options.cc || options.rsc)) {
 	setProperties(options)
 
 	if (options.ie)
@@ -43,6 +46,8 @@ if (options && (options.ie || options.dd || options.cd || options.lt || options.
 		callLoader('dropDatabase')
 	if (options.cd)
 		callLoader('createDatabase')
+	if (options.csv)
+		new LoadATPCSV().run()
 	if (options.lt)
 		new LoadATPTennis().run()
 	if (options.ln)
@@ -84,6 +89,8 @@ else
 
 static def setProperties(def options) {
 	setProperty(options.getProperty('bd'), BASE_DIR_PROPERTY)
+	setProperty(options.getProperty('from'), FROM_SEASON_PROPERTY)
+	setProperty(options.getProperty('to'), TO_SEASON_PROPERTY)
 	setProperty(options.getProperty('url'), SqlPool.DB_URL_PROPERTY)
 	setProperty(options.getProperty('u'), SqlPool.USERNAME_PROPERTY)
 	setProperty(options.getProperty('p'), SqlPool.PASSWORD_PROPERTY)

@@ -30,12 +30,24 @@ abstract class BaseCSVLoader {
 	def loadFile(String file, boolean readFirstLine = false) {
 		println "Loading file '$file'"
 		def stopwatch = Stopwatch.createStarted()
-		List columnNames = columnNames()
-		def csvParams = [readFirstLine: readFirstLine]
-		if (columnNames)
-			csvParams << [columnNames: columnNames]
-		def data = CsvParser.parseCsv(csvParams, new FileReader(file))
-		int rows = load(data)
+		int rows
+		new File(file).withReader('UTF-8') { reader ->
+			reader.mark(65536)
+			def header = reader.readLine()?.replace('\uFEFF', '')?.split(',')?.collect { it.replace('"', '').trim() }
+			reader.reset()
+			// Legacy files are positional and headerless. New Sackmann exports have
+			// named headers, extra columns and sometimes a different column order.
+			def aliases = [name_first: 'first_name', name_last: 'last_name', ioc: 'country',
+				ranking_date: 'rank_date', player: 'player_id', points: 'rank_points']
+			def names = columnNames()
+			boolean hasHeader = header && header.any { it in ['player_id', 'ranking_date', 'rank_date', 'tourney_id', 'name_first'] }
+			def csvParams = [readFirstLine: hasHeader ? false : readFirstLine]
+			if (hasHeader)
+				csvParams.columnNames = header.collect { aliases[it] ?: it }
+			else if (names)
+				csvParams.columnNames = names
+			rows = load(CsvParser.parseCsv(csvParams, reader))
+		}
 		printLoadInfo(stopwatch, rows)
 		return rows
 	}
@@ -61,63 +73,66 @@ abstract class BaseCSVLoader {
 		def rows = 0
 		def batches = new ProgressTicker('.' as char, 1).withDownstreamTicker(ProgressTicker.newLineTicker())
 		def paramsBatch = []
+		def futures = []
 		if (sqlPool.size() < 2)
 			throw new IllegalArgumentException("At least 2 DB connections are required for CVS data load, check ${SqlPool.DB_CONNECTIONS_PROPERTY}")
 		sqlPool.withSql { sql ->
 			def executor = Executors.newFixedThreadPool(Math.min(sqlPool.size(), threadCount()))
 			def paramsConn = sql.connection
-			for (record in data) {
-				if (record.values.size() <= 1)
-					continue
-				try {
-					def params = params(record, paramsConn)
-					if (params) {
-						paramsBatch << params
-						if (++rows % batchSize == 0) {
-							execute(executor, loadSql, paramsBatch, batches)
-							paramsBatch = []
+			try {
+				for (record in data) {
+					if (record.values.size() <= 1)
+						continue
+					try {
+						def params = params(record, paramsConn)
+						if (params) {
+							paramsBatch << params
+							if (++rows % batchSize == 0) {
+								futures << execute(executor, loadSql, paramsBatch, batches)
+								paramsBatch = []
+							}
 						}
 					}
+					catch (Exception ex) {
+						throw new Exception("Error processing record $record", ex)
+					}
 				}
-				catch (Exception ex) {
-					throw new Exception("Error processing record $record", ex)
-				}
+				if (paramsBatch)
+					futures << execute(executor, loadSql, paramsBatch, batches)
+				// Await every submitted batch so a database error cannot be reported as success.
+				for (future in futures)
+					future.get()
 			}
-			if (paramsBatch)
-				execute(executor, loadSql, paramsBatch, batches)
-			executor.shutdown()
-			executor.awaitTermination(1L, TimeUnit.DAYS)
+			finally {
+				executor.shutdown()
+				executor.awaitTermination(1L, TimeUnit.DAYS)
+			}
 		}
 		rows
 	}
 
 	def execute(ExecutorService executor, String loadSql, Collection<Map> paramsBatch, ProgressTicker batches) {
-		executor.execute {
+		executor.submit {
 			executeWithBatch(loadSql, paramsBatch)
 			batches.tick()
 		}
 	}
 
 	def executeWithBatch(String loadSql, Collection<Map> paramsBatch) {
-		sqlPool.withSql { sql ->
-			try {
+		try {
+			sqlPool.withSql { sql ->
 				sql.withBatch(loadSql) { ps ->
-					paramsBatch.each { params ->
-						ps.addBatch(params)
-					}
+					paramsBatch.each { params -> ps.addBatch(params) }
 				}
 			}
-			catch (BatchUpdateException buEx) {
-				switch (buEx.getSQLState()) {
-					case DEADLOCK_DETECTED:
-						print '*'
-						for (def paramsSubBatch : tile(paramsBatch))
-							executeWithBatch(loadSql, paramsSubBatch)
-						break
-					default:
-						throw buEx
-				}
-			}
+		}
+		catch (BatchUpdateException ex) {
+			// withSql has rolled back and released the connection before retrying.
+			if (ex.SQLState != DEADLOCK_DETECTED || paramsBatch.size() <= 1)
+				throw ex
+			print '*'
+			for (paramsSubBatch in tile(paramsBatch))
+				executeWithBatch(loadSql, paramsSubBatch)
 		}
 	}
 

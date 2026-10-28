@@ -3,6 +3,8 @@ package org.strangeforest.tcb.dataload
 class LoadParams {
 
 	static final String BASE_DIR_PROPERTY = 'tcb.data.base-dir'
+	static final String FROM_SEASON_PROPERTY = 'tcb.data.from-season'
+	static final String TO_SEASON_PROPERTY = 'tcb.data.to-season'
 	static final String FULL_LOAD_PROPERTY = 'tcb.data.full-load'
 	static final String MAX_RANK_PROPERTY = 'tcb.data.max-rank'
 	static final String VERBOSE_PROPERTY = 'tcb.data.verbose'

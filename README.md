@@ -44,9 +44,34 @@
 https://www.ultimatetennisstatistics.com
 
 ### Data Loaders
-- For Jeff Sackmann ATP CSV repository: https://github.com/JeffSackmann/tennis_atp (as of commit cf2201c on 2 dec 2019)
+- Jeff Sackmann's ATP CSV data is available from the [community archive](https://github.com/Aneeshers/tennis-sackmann-archive), in its `atp/` directory. The archive contains data through June 2026; it is a snapshot, not a live feed.
 - Database setup instructions: [#232](https://github.com/mcekovic/tennis-crystal-ball/issues/232)
 - Docker image [mcekovic/uts-database](https://hub.docker.com/r/mcekovic/uts-database) with PostgreSQL database pre-populated with ATP tennis data as of season 2019: [#337](https://github.com/mcekovic/tennis-crystal-ball/issues/337) 
+
+#### Import newer ATP CSV data
+
+Use Java 11 and PostgreSQL with this project's schema and load procedures installed. Back up your database before a catch-up import. For an empty database, the existing `-ie -cd` commands install extensions and create the schema; do not run `-cd` against an existing installation.
+
+For an existing database, first apply `crystal-ball/src/main/db/migration/V1.0.3__modern_tournament_entries.sql` as the owner of `tournament_entry` (through your normal Flyway migration process, or `psql -v ON_ERROR_STOP=1 -d tcb -f crystal-ball/src/main/db/migration/V1.0.3__modern_tournament_entries.sql`). This adds Olympic `ITF`/`UP` and Next Gen `NG` entry categories. Commit the migration before importing matches. New databases include these values automatically.
+
+```sh
+git clone --depth=1 https://github.com/Aneeshers/tennis-sackmann-archive.git /path/to/tennis-sackmann-archive
+./gradlew -PgradleGitPropertiesVersion=2.4.2 :data-load:installDist
+data-load/build/install/data-load/bin/data-load \
+  -csv -bd /path/to/tennis-sackmann-archive/atp -from 2024 -c 2
+```
+
+The Gradle property override replaces an old build plugin whose dependency is no longer available from JCenter. Use `-url jdbc:postgresql://localhost:5432/tcb` and `-u` to select a database when needed. The importer also accepts the existing `tcb.db.*` JVM properties; avoid putting database passwords into shell history.
+
+`-csv` imports players, rankings and ATP main-draw singles results from local files. It does not invoke ATP Tour, Wikipedia or browser scrapers. It accepts the archive's named player/ranking headers and extra player columns, as well as legacy headerless player/ranking files. The base directory must contain `atp_players.csv`, ranking files, and match files.
+
+Match files are discovered by the exact pattern `atp_matches_YYYY.csv` and loaded in season order, including future seasons without code changes. `-from` and `-to` select the available match files within an inclusive range; omit `-to` to include the latest available season. Full loading is the default. `-d -csv` loads the latest two calendar seasons represented by the dataset, unless explicitly overridden by `-from`/`-to`. Ranking archives (`atp_rankings_XXs.csv`) are discovered and upserted before `atp_rankings_current.csv`, independently of the match season range. A partial import may have committed earlier batches if a later batch fails; the command exits unsuccessfully and can be rerun after correcting the cause.
+
+Qualifying/Challenger, doubles, WTA and point-by-point datasets are separate datasets and are not imported into this ATP singles schema. The archive's 2026 data is incomplete for that season. Refresh your local dataset from a trusted source before subsequent imports; this command does not download data itself.
+
+After ingestion, run the existing `-el -rc -rr` commands against the same database to recompute Elo ratings, refresh derived statistics and rebuild records. These operations can take substantially longer than the CSV import. Restart the web app or clear its caches after refreshing. The `-ln` command retains its existing website-scraping workflow; use `-csv` for community CSV updates.
+
+Attribute Jeff Sackmann when using the data and preserve its [CC BY-NC-SA 4.0 license](https://github.com/Aneeshers/tennis-sackmann-archive/blob/main/LICENSE).
 
 ### Technology
 PostgreSQL, Java, Spring Boot, Thymeleaf, JQuery, Bootstrap, Google Charts, Groovy...

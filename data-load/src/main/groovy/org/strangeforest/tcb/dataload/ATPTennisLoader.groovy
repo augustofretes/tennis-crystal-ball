@@ -27,27 +27,62 @@ class ATPTennisLoader {
 		println 'Loading rankings'
 		load {
 			def rows = 0
-			if (full) {
-				for (decade in ['70s', '80s', '90s', '00s', '10s', '20s'])
-					rows += loader.loadFile(baseDir() + "atp_rankings_${decade}.csv")
-			}
-			rows += loader.loadFile(baseDir() + "atp_rankings_current.csv", true)
+
+			// Archives are upserted before current rankings, including during catch-up loads.
+			for (file in rankingFiles())
+				rows += loader.loadFile(file.path, true)
+			rows
 		}
 		println()
+	}
+
+	List<File> rankingFiles() {
+		def files = new File(baseDir()).listFiles()?.findAll {
+			it.isFile() && it.name ==~ /atp_rankings_(\d{2}s|current)\.csv/
+		}?.sort {
+			if (it.name == 'atp_rankings_current.csv')
+				return Integer.MAX_VALUE
+			int decade = it.name.substring(13, 15).toInteger()
+			(decade >= 70 ? 1900 : 2000) + decade
+		}
+		if (!files)
+			throw new IllegalArgumentException("No ATP ranking CSV files found in ${baseDir()}")
+		return files
+	}
+
+	void validateCSVFiles() {
+		if (!new File(baseDir(), 'atp_players.csv').isFile())
+			throw new IllegalArgumentException("No atp_players.csv found in ${baseDir()}")
+		rankingFiles()
+		matchFiles()
 	}
 
 	def loadMatches(loader) {
 		println 'Loading matches'
 		load {
 			def rows = 0
-			if (full) {
-				for (year in 1968..2020)
-					rows += loader.loadFile(baseDir() + "atp_matches_${year}.csv")
-			}
-			def year = 2021
-			rows += loader.loadFile(baseDir() + "atp_matches_${year}.csv")
+			for (file in matchFiles())
+				rows += loader.loadFile(file.path)
+			rows
 		}
 		println()
+	}
+
+	List<File> matchFiles() {
+		def files = new File(baseDir()).listFiles()?.findAll {
+			it.isFile() && it.name ==~ /atp_matches_\d{4}\.csv/
+		}?.sort { it.name }
+		if (!files)
+			throw new IllegalArgumentException("No ATP main-draw match CSV files found in ${baseDir()}")
+		int latest = files.last().name.substring(12, 16).toInteger()
+		int from = getIntProperty(FROM_SEASON_PROPERTY, full ? 1968 : latest - 1)
+		int to = getIntProperty(TO_SEASON_PROPERTY, latest)
+		if (from < 1968 || from > to || to > 9999)
+			throw new IllegalArgumentException("Invalid match season range: $from..$to")
+		def selected = files.findAll { it.name.substring(12, 16).toInteger() in from..to }
+		if (!selected)
+			throw new IllegalArgumentException("No ATP match CSV files for seasons $from..$to")
+		return selected
 	}
 
 	def loadMatchPrices(loader) {

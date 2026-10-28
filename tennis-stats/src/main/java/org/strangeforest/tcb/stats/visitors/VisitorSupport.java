@@ -6,5 +6,5 @@ import org.springframework.context.annotation.*;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@Profile("!dev")
+@Profile("!dev & !railway")
 public @interface VisitorSupport {}
