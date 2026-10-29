@@ -21,7 +21,7 @@ class RecentResultsSync {
     static Integer num(Object s) { s == null || s.toString().trim() == '' ? null : Integer.valueOf(s.toString()) }
     static String entry(Object value) {
         String s=value?.toString()?.trim()?.toUpperCase(Locale.ROOT)
-        s in ['ALT','ALTERNATE']?'AL':s?:null
+        s in ['ALT','ALTERNATE']?'AL':s in ['W','WILDCARD']?'WC':s?:null
     }
     static String countryCode(Map flag) {
         if(flag?.alt?.matches('[A-Z]{3}'))return flag.alt
@@ -477,6 +477,7 @@ class RecentResultsSync {
 if(args && args[0]=='--test') {
     assert RecentResultsSync.norm('Félix Auger-Aliassime')=='felixaugeraliassime'
     assert RecentResultsSync.entry('Alt')=='AL'
+    assert RecentResultsSync.entry('W')=='WC'
     assert RecentResultsSync.entry('wc')=='WC'
     assert RecentResultsSync.countryCode([alt:'Kazakhstan',href:'https://a.espncdn.com/i/teamlogos/countries/500/kaz.png'])=='KAZ'
     def s=RecentResultsSync.score('7-6(5) 6-2')
