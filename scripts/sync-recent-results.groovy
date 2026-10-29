@@ -99,6 +99,18 @@ class RecentResultsSync {
         String url='https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates='+from.replace('-','')+'-'+through.replace('-','')+'&limit=1000'
         Map espn=new JsonSlurper().parseText(get(url)) as Map
         if(!(espn.events instanceof List) || !espn.events) throw new IllegalStateException('Empty ESPN tournament inventory')
+        Map eventTournaments=[:] + ESPN_TOURNAMENTS
+        espn.events.each { e ->
+            String id=e.id.split('-')[0]
+            if(!eventTournaments[id]) {
+                String label=norm(e.name+' '+(e.venue?.displayName?:'')).replace('atp','')
+                List candidates=tournamentDefaults.entrySet().findAll { entry ->
+                    String token=norm(entry.value.name).replace('masters','').replace('tour','').replace('atp','')
+                    token.size()>3 && label.contains(token)
+                }.sort{a,b->norm(b.value.name).size()<=>norm(a.value.name).size()}
+                if(candidates && (candidates.size()==1 || norm(candidates[0].value.name).size()>norm(candidates[1].value.name).size()))eventTournaments[id]=candidates[0].key
+            }
+        }
         Map participants=[:], evidence=[:]; List esMatches=[]
         espn.events.each { e -> e.groupings?.findAll { it.grouping.slug=='mens-singles' }?.each { g ->
             g.competitions.each { c ->
@@ -160,7 +172,7 @@ class RecentResultsSync {
                 String tid=id.group(2).replaceFirst('^0+(?!$)','')
                 boolean ownWin=r[4]=='W'
                 String wn=ownWin?p.fullname:r[11], ln=ownWin?r[11]:p.fullname
-                List candidates=(evidence[pair(wn,ln)] ?: []).findAll { it.date>=date && it.date<=LocalDate.parse(date).plusDays(21).toString() && (!ESPN_TOURNAMENTS[it.eventId.split('-')[0]] || ESPN_TOURNAMENTS[it.eventId.split('-')[0]]==tid) }
+                List candidates=(evidence[pair(wn,ln)] ?: []).findAll { it.date>=date && it.date<=LocalDate.parse(date).plusDays(21).toString() && (!eventTournaments[it.eventId.split('-')[0]] || eventTournaments[it.eventId.split('-')[0]]==tid) }
                 def exact=candidates.findAll { norm(it.winner)==norm(wn) }
                 if(candidates && !exact) {conflicts<<[id:r[43],reason:'Sources disagree on winner',names:[wn,ln]];return}
                 Map sc
@@ -178,8 +190,9 @@ class RecentResultsSync {
         }
         // ESPN is the result-coverage fallback; unavailable statistics stay null.
         Map templates=matches.values().groupBy{it.extTournament}.collectEntries{k,v->[(k):v[0]]}
+        matches.values().each{m->(m.espnIds?:[]).each{eid->def es=esMatches.find{it.id==eid};if(es)eventTournaments[es.eventId.split('-')[0]]=m.extTournament}}
         espn.events.each { e ->
-            String tid=ESPN_TOURNAMENTS[e.id.split('-')[0]]
+            String tid=eventTournaments[e.id.split('-')[0]]
             Map t=tournamentDefaults[tid]
             List main=e.groupings?.find{it.grouping.slug=='mens-singles'}?.competitions?.findAll{!it.round?.displayName?.startsWith('Qualifying')}?:[]
             if(!templates[tid] && t && main) {
@@ -191,7 +204,7 @@ class RecentResultsSync {
         Map fallbackPairs=[:]
         esMatches.each { e ->
             if(seenEspn[e.id]) return
-            String tid=ESPN_TOURNAMENTS[e.eventId.split('-')[0]]
+            String tid=eventTournaments[e.eventId.split('-')[0]]
             Map template=templates[tid]
             if(!template)return
             String dedup=tid+'|'+pair(e.winner,e.loser)+'|'+e.round
