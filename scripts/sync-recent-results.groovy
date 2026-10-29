@@ -325,12 +325,21 @@ class RecentResultsSync {
                     if(!prior.complete_stats && m.wstats.sv_pt && m.lstats.sv_pt) {m.existingMatchId=prior.match_id;enrichments<<m}
                 }
             }else {
-                String identity=[t.tournament_id,m.season,m.round,[norm(m.winner),norm(m.loser)].sort().join(':')].join('|')
+                String winnerKey=(w.id?:'external:'+w.extId).toString(),loserKey=(l.id?:'external:'+l.extId).toString()
+                String identity=[t.tournament_id,m.season,m.round,[winnerKey,loserKey].sort().join(':')].join('|')
                 Map other=pending[identity]
                 if(other) {
-                    if(norm(other.winner)!=norm(m.winner) || other.score.text!=m.score.text)rejects<<[key:m.key,reason:'Duplicate sources disagree',other:other.key]
+                    String otherWinner=(other.wplayer.id?:'external:'+other.wplayer.extId).toString()
+                    if(otherWinner!=winnerKey || other.score.text!=m.score.text)rejects<<[key:m.key,reason:'Duplicate sources disagree',other:other.key]
                     else duplicates<<[key:m.key,otherKey:other.key]
                 } else {inserts<<m;pending[identity]=m}
+            }
+        }
+        inserts.groupBy{it.dbTournament.tournament_id+'|'+it.season}.each{k,rows->
+            Map t=rows[0].dbTournament
+            if(!(t.level in ['D','T','L','F']) && t.draw_size) {
+                int prior=existing.values().count{it.tournament_id==t.tournament_id && it.season==rows[0].season}
+                if(prior+rows.size()>t.draw_size-1) rejects<<[tournament:rows[0].tournament,reason:'Knockout bracket exceeds draw size',drawSize:t.draw_size,matches:prior+rows.size()]
             }
         }
         List usedNew=inserts.collectMany{[it.wplayer,it.lplayer]}.findAll{it.isNew}.unique{it.extId}
