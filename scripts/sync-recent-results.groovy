@@ -19,6 +19,11 @@ class RecentResultsSync {
         [carlosalcarazgarfia:'carlosalcaraz',danielmeridaaguilar:'danielmerida',zhangzhizhen:'zhizhenzhang',shangjuncheng:'junchengshang',buyunchaokete:'yunchaoketebu',sunfajing:'fajingsun',hujia:'jiahu',zhouyi:'yizhou',cuijie:'jiecui'][n] ?: n
     }
     static Integer num(Object s) { s == null || s.toString().trim() == '' ? null : Integer.valueOf(s.toString()) }
+    static String countryCode(Map flag) {
+        if(flag?.alt?.matches('[A-Z]{3}'))return flag.alt
+        def m=(flag?.href?:'') =~ /\/([a-zA-Z]{3})\.png(?:\?|$)/
+        m.find()?m.group(1).toUpperCase(Locale.ROOT):null
+    }
     static String iso(Object s) { String x=s.toString(); x.contains('-') ? x.take(10) : "${x[0..3]}-${x[4..5]}-${x[6..7]}" }
     static void log(String type, Object value) { println(type+' '+JsonOutput.toJson(value)) }
     File cache
@@ -264,12 +269,13 @@ class RecentResultsSync {
             if(!known) {
                 List choices=byName[norm(p.name)]?:[]
                 if(p.dob) {def same=choices.findAll{it.dob==p.dob};if(same.size()==1)known=same[0]}
-                if(!known && choices.size()==1)known=choices[0]
+                if(!known && choices.size()==1 && (!p.dob || !choices[0].dob || choices[0].dob==p.dob))known=choices[0]
             }
             if(!known && !p.extId && p.espnId) {
                 Map bio=new JsonSlurper().parseText(get('https://sports.core.api.espn.com/v2/sports/tennis/athletes/'+p.espnId)) as Map
-                if(bio.dateOfBirth && bio.flag?.alt?.matches('[A-Z]{3}')) {
-                    p.dob=bio.dateOfBirth.take(10);p.country=bio.flag.alt
+                String country=countryCode(bio.flag as Map)
+                if(bio.dateOfBirth && country) {
+                    p.dob=bio.dateOfBirth.take(10);p.country=country
                     List same=players.values().findAll{it.dob==p.dob && it.country==p.country}
                     if(same.size()==1)known=same[0]
                     else {p.extId=-(p.espnId as int);p.name=bio.displayName}
@@ -423,6 +429,7 @@ class RecentResultsSync {
 
 if(args && args[0]=='--test') {
     assert RecentResultsSync.norm('Félix Auger-Aliassime')=='felixaugeraliassime'
+    assert RecentResultsSync.countryCode([alt:'Kazakhstan',href:'https://a.espncdn.com/i/teamlogos/countries/500/kaz.png'])=='KAZ'
     def s=RecentResultsSync.score('7-6(5) 6-2')
     assert s.ws==2 && s.ls==0 && s.wg==13 && s.sets[0].wt==7 && s.sets[0].lt==5
     assert RecentResultsSync.score('5-1 RET').ws==0
