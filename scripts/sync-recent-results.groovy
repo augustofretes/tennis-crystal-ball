@@ -366,7 +366,7 @@ class RecentResultsSync {
         List names=row.proargnames.array as List, types=row.types.split(', ') as List
         [names:names,types:types,statement:'CALL '+name+'('+types.collect{'?::'+it}.join(',')+')']
     }
-    static void call(Sql sql,Map proc,Map values) {
+    static void executeProcedure(Sql sql,Map proc,Map values) {
         List args=[]
         proc.names.eachWithIndex { n,i ->
             Object v=values[n]
@@ -402,7 +402,7 @@ class RecentResultsSync {
                 boolean indoor=m.surface=='H' && (INDOOR.contains(m.tournament.toLowerCase(Locale.ROOT)) || t.indoor)
                 Map p=[p_ext_tournament_id:t.ext_tournament_id,p_season:m.season,p_tournament_date:m.tournamentDate,p_tournament_name:t.name,p_event_name:m.taLevel=='D'?t.name:m.tournament,p_tournament_level:level,p_surface:m.surface,p_indoor:indoor,p_draw_type:'KO',p_draw_size:t.draw_size,p_rank_points:[G:2000,M:1000,A:500,B:250][level],p_match_num:matchNum,p_date:m.date,p_round:m.round,p_best_of:m.bestOf,p_ext_winner_id:m.wplayer.extId,p_winner_name:m.wplayer.name,p_winner_country_id:m.wplayer.country,p_winner_seed:m.winnerSeed,p_winner_entry:m.winnerEntry?:null,p_winner_rank:m.winnerRank,p_ext_loser_id:m.lplayer.extId,p_loser_name:m.lplayer.name,p_loser_country_id:m.lplayer.country,p_loser_seed:m.loserSeed,p_loser_entry:m.loserEntry?:null,p_loser_rank:m.loserRank,p_score:m.score.text,p_outcome:m.score.outcome,p_w_sets:m.score.ws,p_l_sets:m.score.ls,p_w_games:m.score.wg,p_l_games:m.score.lg,p_w_tbs:m.score.wt,p_l_tbs:m.score.lt,p_w_set_games:m.score.sets*.w,p_l_set_games:m.score.sets*.l,p_w_set_tb_pt:m.score.sets*.wt,p_l_set_tb_pt:m.score.sets*.lt,p_w_set_tbs:m.score.sets*.wb,p_l_set_tbs:m.score.sets*.lb,p_minutes:m.minutes]
                 m.wstats.each{k,v->p['p_w_'+k]=v};m.lstats.each{k,v->p['p_l_'+k]=v}
-                call(sql,proc,p)
+                RecentResultsSync.executeProcedure(sql,proc,p)
                 def saved=sql.firstRow('SELECT m.match_id FROM match m JOIN tournament_event e USING(tournament_event_id) WHERE e.tournament_id=? AND e.season=? AND m.match_num=?',[t.tournament_id,m.season,matchNum])
                 sql.execute('INSERT INTO result_sync_match(source_key,match_id,run_id,date_precision,source_urls,raw_record) VALUES (?,?,?,?,?::jsonb,?::jsonb)',[m.key,saved.match_id,runId,m.datePrecision,JsonOutput.toJson(m.sourceUrls+(m.espnId?['https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates='+m.date.replace('-','')]:[])),JsonOutput.toJson(m.raw)])
             }
@@ -411,7 +411,7 @@ class RecentResultsSync {
                 sql.execute('INSERT INTO result_sync_backup(run_id,match_id,match_data,stats_data) SELECT ?,m.match_id,to_jsonb(m),coalesce((SELECT jsonb_agg(to_jsonb(s)) FROM match_stats s WHERE s.match_id=m.match_id),\'[]\'::jsonb) FROM match m WHERE m.match_id=? ON CONFLICT DO NOTHING',[runId,m.existingMatchId])
                 Map p=[p_match_id:m.existingMatchId,p_minutes:m.minutes]
                 m.wstats.each{k,v->p['p_w_'+k]=v};m.lstats.each{k,v->p['p_l_'+k]=v}
-                call(sql,statsProc,p)
+                RecentResultsSync.executeProcedure(sql,statsProc,p)
                 sql.execute('INSERT INTO result_sync_match(source_key,match_id,run_id,date_precision,source_urls,raw_record,created_match) VALUES (?,?,?,?,?::jsonb,?::jsonb,false) ON CONFLICT(source_key) DO NOTHING',[m.key,m.existingMatchId,runId,m.datePrecision,JsonOutput.toJson(m.sourceUrls),JsonOutput.toJson(m.raw)])
             }
             sql.execute('UPDATE result_sync_run SET completed_at=now(),inserted=? WHERE run_id=?',[ordered.size(),runId])
