@@ -19,6 +19,10 @@ class RecentResultsSync {
         [carlosalcarazgarfia:'carlosalcaraz',danielmeridaaguilar:'danielmerida',zhangzhizhen:'zhizhenzhang',shangjuncheng:'junchengshang',buyunchaokete:'yunchaoketebu',sunfajing:'fajingsun',hujia:'jiahu',zhouyi:'yizhou',cuijie:'jiecui'][n] ?: n
     }
     static Integer num(Object s) { s == null || s.toString().trim() == '' ? null : Integer.valueOf(s.toString()) }
+    static String entry(Object value) {
+        String s=value?.toString()?.trim()?.toUpperCase(Locale.ROOT)
+        s in ['ALT','ALTERNATE']?'AL':s?:null
+    }
     static String countryCode(Map flag) {
         if(flag?.alt?.matches('[A-Z]{3}'))return flag.alt
         def m=(flag?.href?:'') =~ /\/([a-zA-Z]{3})\.png(?:\?|$)/
@@ -319,7 +323,10 @@ class RecentResultsSync {
             existing[[r.tournament_id,r.season,r.round,[r.winner_id,r.loser_id].sort().join(':')].join('|')]=r
         }
         List inserts=[], rejects=[], duplicates=[], enrichments=[];Map pending=[:]
+        Set allowedEntries=sql.rows("SELECT enumlabel FROM pg_enum WHERE enumtypid='tournament_entry'::regtype")*.enumlabel as Set
         data.matches.each { m ->
+            m.winnerEntry=entry(m.winnerEntry);m.loserEntry=entry(m.loserEntry)
+            if([m.winnerEntry,m.loserEntry].any{it && !(it in allowedEntries)}) {rejects<<[key:m.key,reason:'Unsupported tournament entry',entries:[m.winnerEntry,m.loserEntry]];return}
             Map t=tournaments[m.extTournament]
             if(m.taLevel=='D') {
                 String group=m.tournament.split(' R')[0]
@@ -469,6 +476,8 @@ class RecentResultsSync {
 
 if(args && args[0]=='--test') {
     assert RecentResultsSync.norm('Félix Auger-Aliassime')=='felixaugeraliassime'
+    assert RecentResultsSync.entry('Alt')=='AL'
+    assert RecentResultsSync.entry('wc')=='WC'
     assert RecentResultsSync.countryCode([alt:'Kazakhstan',href:'https://a.espncdn.com/i/teamlogos/countries/500/kaz.png'])=='KAZ'
     def s=RecentResultsSync.score('7-6(5) 6-2')
     assert s.ws==2 && s.ls==0 && s.wg==13 && s.sets[0].wt==7 && s.sets[0].lt==5
