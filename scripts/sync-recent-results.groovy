@@ -346,6 +346,8 @@ class RecentResultsSync {
         sql.withTransaction {
             sql.execute('CREATE TABLE IF NOT EXISTS result_sync_run (run_id text PRIMARY KEY,started_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz,from_date date NOT NULL,through_date date NOT NULL,inserted integer NOT NULL DEFAULT 0,report jsonb NOT NULL,derived_completed boolean NOT NULL DEFAULT false)')
             sql.execute('CREATE TABLE IF NOT EXISTS result_sync_match (source_key text PRIMARY KEY,match_id bigint NOT NULL REFERENCES match(match_id),run_id text NOT NULL REFERENCES result_sync_run(run_id),date_precision text NOT NULL,source_urls jsonb NOT NULL,raw_record jsonb NOT NULL)')
+            sql.execute('ALTER TABLE result_sync_match ADD COLUMN IF NOT EXISTS created_match boolean NOT NULL DEFAULT true')
+            sql.execute('CREATE TABLE IF NOT EXISTS result_sync_backup (run_id text NOT NULL REFERENCES result_sync_run(run_id),match_id bigint NOT NULL,match_data jsonb NOT NULL,stats_data jsonb NOT NULL,PRIMARY KEY(run_id,match_id))')
             sql.execute('INSERT INTO result_sync_run(run_id,from_date,through_date,report) VALUES (?,?::date,?::date,?::jsonb)',[runId,data.from,data.through,JsonOutput.toJson([profiles:data.profiles,failedProfiles:data.failedProfiles,espnMatched:data.matches.count{it.espnId}])])
             plan.newPlayers.each { p ->
                 List words=p.name.split(' ') as List
@@ -369,10 +371,11 @@ class RecentResultsSync {
             }
             Map statsProc=procedure(sql,'load_match_stats')
             plan.enrichments.each { m ->
+                sql.execute('INSERT INTO result_sync_backup(run_id,match_id,match_data,stats_data) SELECT ?,m.match_id,to_jsonb(m),coalesce((SELECT jsonb_agg(to_jsonb(s)) FROM match_stats s WHERE s.match_id=m.match_id),\'[]\'::jsonb) FROM match m WHERE m.match_id=? ON CONFLICT DO NOTHING',[runId,m.existingMatchId])
                 Map p=[p_match_id:m.existingMatchId,p_minutes:m.minutes]
                 m.wstats.each{k,v->p['p_w_'+k]=v};m.lstats.each{k,v->p['p_l_'+k]=v}
                 call(sql,statsProc,p)
-                sql.execute('INSERT INTO result_sync_match(source_key,match_id,run_id,date_precision,source_urls,raw_record) VALUES (?,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(source_key) DO NOTHING',[m.key,m.existingMatchId,runId,m.datePrecision,JsonOutput.toJson(m.sourceUrls),JsonOutput.toJson(m.raw)])
+                sql.execute('INSERT INTO result_sync_match(source_key,match_id,run_id,date_precision,source_urls,raw_record,created_match) VALUES (?,?,?,?,?::jsonb,?::jsonb,false) ON CONFLICT(source_key) DO NOTHING',[m.key,m.existingMatchId,runId,m.datePrecision,JsonOutput.toJson(m.sourceUrls),JsonOutput.toJson(m.raw)])
             }
             sql.execute('UPDATE result_sync_run SET completed_at=now(),inserted=? WHERE run_id=?',[ordered.size(),runId])
         }
