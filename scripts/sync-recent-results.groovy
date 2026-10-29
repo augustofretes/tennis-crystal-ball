@@ -267,6 +267,14 @@ class RecentResultsSync {
             String key=norm(r.name); if(!byName[key])byName[key]=[]
             if(!byName[key].any{it.id==p.id})byName[key]<<p
         }
+        // Both provider IDs identify Coleman Wong. Reconcile lookups without
+        // rewriting historical player rows or their foreign keys.
+        Map canonicalPlayer=[:]
+        Map former=byExt[208597], current=byExt[209409]
+        if(former && current && former.id!=current.id) {
+            if(former.dob!='2004-06-06' || current.dob!=former.dob || former.country!='HKG' || current.country!=former.country)throw new IllegalStateException('Coleman Wong provider alias no longer matches verified identity')
+            canonicalPlayer[former.id]=current.id
+        }
         sql.rows('SELECT alias,name FROM player_alias').each { a -> if(byName[norm(a.name)])byName[norm(a.alias)]=byName[norm(a.name)] }
         // Older staged snapshots may predate the addition of ESPN identity IDs.
         if(data.identities.values().any{!it.extId && !it.espnId && !byName[norm(it.name)]}) {
@@ -298,7 +306,7 @@ class RecentResultsSync {
                     }
                 }
             }
-            if(known)resolved[norm(p.name)]=known
+            if(known)resolved[norm(p.name)]=players[canonicalPlayer[known.id]?:known.id]
             else if(p.country && p.dob && p.extId) resolved[norm(p.name)]=[name:p.name,country:p.country,dob:p.dob,extId:p.extId,height:p.height,hand:p.hand,isNew:true]
             else unknown[norm(p.name)]=p
             if(resolved[norm(p.name)])resolved[k]=resolved[norm(p.name)]
@@ -306,7 +314,10 @@ class RecentResultsSync {
         Map tournaments=[:]
         sql.rows('SELECT DISTINCT ON (tm.ext_tournament_id) tm.ext_tournament_id,t.tournament_id,t.name,t.level::text,t.surface::text,t.indoor,e.draw_size FROM tournament_mapping tm JOIN tournament t USING(tournament_id) LEFT JOIN tournament_event e USING(tournament_id) ORDER BY tm.ext_tournament_id,e.season DESC NULLS LAST').each { r -> tournaments[r.ext_tournament_id]=r as Map }
         Map existing=[:]
-        sql.rows('SELECT m.match_id,m.tournament_event_id,e.tournament_id,e.season,m.round::text,m.winner_id,m.loser_id,m.score,(s.w_sv_pt IS NOT NULL AND s.l_sv_pt IS NOT NULL) AS complete_stats FROM match m JOIN tournament_event e USING(tournament_event_id) LEFT JOIN match_stats s ON s.match_id=m.match_id AND s.set=0 WHERE e.season>=?', [data.from.take(4).toInteger()]).each { r -> existing[[r.tournament_id,r.season,r.round,[r.winner_id,r.loser_id].sort().join(':')].join('|')]=r }
+        sql.rows('SELECT m.match_id,m.tournament_event_id,e.tournament_id,e.season,m.round::text,m.winner_id,m.loser_id,m.score,(s.w_sv_pt IS NOT NULL AND s.l_sv_pt IS NOT NULL) AS complete_stats FROM match m JOIN tournament_event e USING(tournament_event_id) LEFT JOIN match_stats s ON s.match_id=m.match_id AND s.set=0 WHERE e.season>=?', [data.from.take(4).toInteger()]).each { r ->
+            r.winner_id=canonicalPlayer[r.winner_id]?:r.winner_id;r.loser_id=canonicalPlayer[r.loser_id]?:r.loser_id
+            existing[[r.tournament_id,r.season,r.round,[r.winner_id,r.loser_id].sort().join(':')].join('|')]=r
+        }
         List inserts=[], rejects=[], duplicates=[], enrichments=[];Map pending=[:]
         data.matches.each { m ->
             Map t=tournaments[m.extTournament]
