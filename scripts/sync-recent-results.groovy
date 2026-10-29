@@ -25,6 +25,7 @@ class RecentResultsSync {
     Map env
     long lastRequest=0
     boolean limited=false
+    Map tournamentDefaults=[:]
     RecentResultsSync(Map environment=System.getenv()) {
         env=environment
         cache=new File(env.SYNC_CACHE_DIR ?: '/tmp/tennis-sync'); cache.mkdirs()
@@ -33,7 +34,7 @@ class RecentResultsSync {
         String key=java.security.MessageDigest.getInstance('SHA-256').digest(url.bytes).encodeHex().toString()
         File f=new File(cache,key+'.txt')
         if(f.exists() && env.SYNC_REUSE_CACHE == 'true') return f.getText('UTF-8')
-        if(env.SYNC_CACHE_ONLY=='true' || limited) throw new IOException('Source cache miss; continuing with ESPN results')
+        if(env.SYNC_CACHE_ONLY=='true' || (limited && url.contains('tennisabstract.com'))) throw new IOException('Source cache miss; continuing with ESPN results')
         Exception failure
         for(int attempt=0;attempt<2;attempt++) {
             try {
@@ -112,14 +113,17 @@ class RecentResultsSync {
                 if(!evidence[key].any{it.id==m.id}) evidence[key]<<m
             }
         }}
-        String ranking=get('https://tennisabstract.com/reports/atpRankings.html')
+        String ranking=''
+        try{ranking=get('https://tennisabstract.com/reports/atpRankings.html')}catch(IOException ignored){log('OPTIONAL_PLAYER_DIRECTORY_UNAVAILABLE',[:])}
         Map slugs=[:]
         Jsoup.parse(ranking).select('a[href*=player.cgi?p=]').each { a -> slugs[norm(a.text())]=a.attr('href').split('\\?p=')[1] }
         // The ranking report is only a directory of player-page identifiers, not imported ranking data.
         Map profiles=[:], allRows=[:], failures=[:]
         def pool=Executors.newFixedThreadPool(1)
         try {
-            def futures=participants.collect { key,name -> pool.submit({
+            Map frequency=esMatches.collectMany{[norm(it.winner),norm(it.loser)]}.countBy{it}
+            def selected=participants.entrySet().sort{a,b->(frequency[b.key]?:0)<=>(frequency[a.key]?:0)}.take((env.SYNC_PROFILE_LIMIT?:'80') as int)
+            def futures=selected.collect { entry -> String key=entry.key,name=entry.value; pool.submit({
                 Map renamed=[zhangzhizhen:'ZhizhenZhang',shangjuncheng:'JunchengShang',buyunchaokete:'YunchaoketeBu',sunfajing:'FajingSun',hujia:'JiaHu',zhouyi:'YiZhou',cuijie:'JieCui']
                 String slug=renamed[key] ?: slugs[key] ?: Normalizer.normalize(name,Normalizer.Form.NFD).replaceAll('\\p{M}','').replaceAll('[^A-Za-z]','')
                 try {
@@ -174,6 +178,15 @@ class RecentResultsSync {
         }
         // ESPN is the result-coverage fallback; unavailable statistics stay null.
         Map templates=matches.values().groupBy{it.extTournament}.collectEntries{k,v->[(k):v[0]]}
+        espn.events.each { e ->
+            String tid=ESPN_TOURNAMENTS[e.id.split('-')[0]]
+            Map t=tournamentDefaults[tid]
+            List main=e.groupings?.find{it.grouping.slug=='mens-singles'}?.competitions?.findAll{!it.round?.displayName?.startsWith('Qualifying')}?:[]
+            if(!templates[tid] && t && main) {
+                String date=main.collect{it.date.take(10)}.min()
+                templates[tid]=[extTournament:tid,season:date.take(4).toInteger(),tournament:t.name,tournamentDate:date,surface:t.surface,taLevel:t.level,bestOf:t.level=='G'?5:3,defaultDraw:t.draw_size]
+            }
+        }
         Map seenEspn=matches.values().collectMany{it.espnIds?:[]}.collectEntries{[(it):true]}
         Map fallbackPairs=[:]
         esMatches.each { e ->
@@ -186,7 +199,7 @@ class RecentResultsSync {
             Map roundMap=['Final':'F','Semifinal':'SF','Quarterfinal':'QF']
             String rd=roundMap[e.round]
             if(!rd && e.round.startsWith('Round ')) {
-                int first=matches.values().findAll{it.extTournament==tid && it.round.startsWith('R') && it.round!='RR'}.collect{num(it.round.substring(1))}.max()?:32
+                int first=matches.values().findAll{it.extTournament==tid && it.round.startsWith('R') && it.round!='RR'}.collect{num(it.round.substring(1))}.max()?:((template.defaultDraw?:32)>64?128:(template.defaultDraw?:32)>32?64:32)
                 rd='R'+(first.intdiv(1 << (e.round.substring(6).toInteger()-1)))
             }
             if(!(rd in ROUNDS))return
@@ -205,7 +218,11 @@ class RecentResultsSync {
             Map m=new LinkedHashMap(template)
             m.putAll([key:ownKey,date:e.date,datePrecision:'match',round:rd,winner:e.winner,loser:e.loser,winnerSeed:num(e.raw.competitors.find{it.winner}.curatedRank?.current),loserSeed:num(e.raw.competitors.find{!it.winner}.curatedRank?.current),winnerEntry:null,loserEntry:null,winnerRank:null,loserRank:null,score:sc,minutes:null,wstats:[:],lstats:[:],espnId:e.id,espnIds:[e.id],sourceUrls:[url],raw:e.raw])
             matches[ownKey]=m;fallbackPairs[dedup]=true
-            [e.winner,e.loser].each{n->identities.putIfAbsent(norm(n),[name:n])}
+            e.raw.competitors.each{c->
+                String n=c.athlete.displayName
+                identities.putIfAbsent(norm(n),[name:n,espnId:c.id])
+                if(!identities[norm(n)].espnId)identities[norm(n)].espnId=c.id
+            }
         }
         List matchedEspn=matches.values().collectMany{it.espnIds?:[]}.unique()
         List missing=esMatches.findAll{ !(it.id in matchedEspn) && it.date>=from }.unique{it.id}
@@ -236,15 +253,25 @@ class RecentResultsSync {
                 if(p.dob) {def same=choices.findAll{it.dob==p.dob};if(same.size()==1)known=same[0]}
                 if(!known && choices.size()==1)known=choices[0]
             }
+            if(!known && !p.extId && p.espnId) {
+                Map bio=new JsonSlurper().parseText(get('https://sports.core.api.espn.com/v2/sports/tennis/athletes/'+p.espnId)) as Map
+                if(bio.dateOfBirth && bio.flag?.alt?.matches('[A-Z]{3}')) {
+                    p.dob=bio.dateOfBirth.take(10);p.country=bio.flag.alt
+                    List same=players.values().findAll{it.dob==p.dob && it.country==p.country}
+                    if(same.size()==1)known=same[0]
+                    else {p.extId=-(p.espnId as int);p.name=bio.displayName}
+                }
+            }
             if(known)resolved[norm(p.name)]=known
             else if(p.country && p.dob && p.extId) resolved[norm(p.name)]=[name:p.name,country:p.country,dob:p.dob,extId:p.extId,height:p.height,hand:p.hand,isNew:true]
             else unknown[norm(p.name)]=p
+            if(resolved[norm(p.name)])resolved[k]=resolved[norm(p.name)]
         }
         Map tournaments=[:]
         sql.rows('SELECT DISTINCT ON (tm.ext_tournament_id) tm.ext_tournament_id,t.tournament_id,t.name,t.level::text,t.surface::text,t.indoor,e.draw_size FROM tournament_mapping tm JOIN tournament t USING(tournament_id) LEFT JOIN tournament_event e USING(tournament_id) ORDER BY tm.ext_tournament_id,e.season DESC NULLS LAST').each { r -> tournaments[r.ext_tournament_id]=r as Map }
         Map existing=[:]
-        sql.rows('SELECT m.match_id,m.tournament_event_id,e.tournament_id,e.season,m.round::text,m.winner_id,m.loser_id,m.score FROM match m JOIN tournament_event e USING(tournament_event_id) WHERE e.season>=?', [data.from.take(4).toInteger()]).each { r -> existing[[r.tournament_id,r.season,r.round,[r.winner_id,r.loser_id].sort().join(':')].join('|')]=r }
-        List inserts=[], rejects=[], duplicates=[];Map pending=[:]
+        sql.rows('SELECT m.match_id,m.tournament_event_id,e.tournament_id,e.season,m.round::text,m.winner_id,m.loser_id,m.score,(s.w_sv_pt IS NOT NULL AND s.l_sv_pt IS NOT NULL) AS complete_stats FROM match m JOIN tournament_event e USING(tournament_event_id) LEFT JOIN match_stats s ON s.match_id=m.match_id AND s.set=0 WHERE e.season>=?', [data.from.take(4).toInteger()]).each { r -> existing[[r.tournament_id,r.season,r.round,[r.winner_id,r.loser_id].sort().join(':')].join('|')]=r }
+        List inserts=[], rejects=[], duplicates=[], enrichments=[];Map pending=[:]
         data.matches.each { m ->
             Map t=tournaments[m.extTournament]
             if(m.taLevel=='D') {
@@ -257,7 +284,10 @@ class RecentResultsSync {
             def prior=(!w.isNew && !l.isNew)?existing[[t.tournament_id,m.season,m.round,[w.id,l.id].sort().join(':')].join('|')]:null
             if(prior) {
                 if(prior.winner_id!=w.id) rejects<<[key:m.key,reason:'Winner conflicts with existing database',matchId:prior.match_id]
-                else duplicates<<[key:m.key,matchId:prior.match_id]
+                else {
+                    duplicates<<[key:m.key,matchId:prior.match_id]
+                    if(!prior.complete_stats && m.wstats.sv_pt && m.lstats.sv_pt) {m.existingMatchId=prior.match_id;enrichments<<m}
+                }
             }else {
                 String identity=[t.tournament_id,m.season,m.round,[norm(m.winner),norm(m.loser)].sort().join(':')].join('|')
                 Map other=pending[identity]
@@ -268,9 +298,10 @@ class RecentResultsSync {
             }
         }
         List usedNew=inserts.collectMany{[it.wplayer,it.lplayer]}.findAll{it.isNew}.unique{it.extId}
-        Map result=[inserts:inserts,rejects:rejects,duplicates:duplicates,newPlayers:usedNew,sourceConflicts:data.conflicts,espnMissing:data.espnMissing]
+        Map result=[inserts:inserts,rejects:rejects,duplicates:duplicates,enrichments:enrichments.unique{it.existingMatchId},newPlayers:usedNew,sourceConflicts:data.conflicts,espnMissing:data.espnMissing]
         Map report=[from:data.from,through:data.through,inserts:inserts.size(),duplicates:duplicates.size(),newPlayers:usedNew.collect{[name:it.name,extId:it.extId]},rejects:rejects,sourceConflicts:data.conflicts,espnMissing:data.espnMissing.size(),withRawStats:inserts.count{it.wstats.sv_pt && it.lstats.sv_pt},actualMatchDates:inserts.count{it.datePrecision=='match'},tournaments:inserts.groupBy{it.dbTournament.ext_tournament_id}.collect{k,v->[id:k,name:v[0].tournament,matches:v.size(),rounds:v.groupBy{it.round}.collectEntries{r,rows->[(r):rows.size()]}]}]
         new File(cache,'validation.json').setText(JsonOutput.prettyPrint(JsonOutput.toJson(report)),'UTF-8')
+        report.statsEnrichment=result.enrichments.size()
         log('IMPORT_PLAN',report)
         result
     }
@@ -317,6 +348,13 @@ class RecentResultsSync {
                 def saved=sql.firstRow('SELECT m.match_id FROM match m JOIN tournament_event e USING(tournament_event_id) WHERE e.tournament_id=? AND e.season=? AND m.match_num=?',[t.tournament_id,m.season,matchNum])
                 sql.execute('INSERT INTO result_sync_match(source_key,match_id,run_id,date_precision,source_urls,raw_record) VALUES (?,?,?,?,?::jsonb,?::jsonb)',[m.key,saved.match_id,runId,m.datePrecision,JsonOutput.toJson(m.sourceUrls+(m.espnId?['https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates='+m.date.replace('-','')]:[])),JsonOutput.toJson(m.raw)])
             }
+            Map statsProc=procedure(sql,'load_match_stats')
+            plan.enrichments.each { m ->
+                Map p=[p_match_id:m.existingMatchId,p_minutes:m.minutes]
+                m.wstats.each{k,v->p['p_w_'+k]=v};m.lstats.each{k,v->p['p_l_'+k]=v}
+                call(sql,statsProc,p)
+                sql.execute('INSERT INTO result_sync_match(source_key,match_id,run_id,date_precision,source_urls,raw_record) VALUES (?,?,?,?,?::jsonb,?::jsonb) ON CONFLICT(source_key) DO NOTHING',[m.key,m.existingMatchId,runId,m.datePrecision,JsonOutput.toJson(m.sourceUrls),JsonOutput.toJson(m.raw)])
+            }
             sql.execute('UPDATE result_sync_run SET completed_at=now(),inserted=? WHERE run_id=?',[ordered.size(),runId])
         }
         log('RESULTS_IMPORT_COMPLETE',[runId:runId,inserted:plan.inserts.size(),through:data.through])
@@ -331,7 +369,19 @@ class RecentResultsSync {
             String checkpoint=table?sql.firstRow('SELECT max(through_date)::text AS d FROM result_sync_run WHERE derived_completed').d:null
             String last=checkpoint ?: sql.firstRow('SELECT max(e.date)::text AS d FROM tournament_event e JOIN match m USING(tournament_event_id)').d
             String from=env.SYNC_FROM ?: LocalDate.parse(last).minusDays(21).toString()
-            Map data=collect(from,through)
+            Map data
+            if(env.SYNC_SEED_ID) {
+                def parts=sql.rows('SELECT part,payload FROM result_sync_seed WHERE seed_id=? ORDER BY part',[env.SYNC_SEED_ID])
+                if(!parts || parts.withIndex().any{p,i->p.part!=i})throw new IllegalStateException('Missing seed snapshot chunks')
+                byte[] compressed=parts*.payload.join('').decodeBase64()
+                String payload=new java.util.zip.GZIPInputStream(new ByteArrayInputStream(compressed)).getText('UTF-8')
+                data=new JsonSlurper().parseText(payload) as Map
+                from=data.from;through=data.through
+                log('SOURCE_SNAPSHOT_LOADED',[from:from,through:through,matches:data.matches.size(),profiles:data.profiles])
+            } else {
+                sql.rows('SELECT DISTINCT ON(tm.ext_tournament_id) tm.ext_tournament_id,t.name,t.level::text,t.surface::text,e.draw_size FROM tournament_mapping tm JOIN tournament t USING(tournament_id) LEFT JOIN tournament_event e USING(tournament_id) ORDER BY tm.ext_tournament_id,e.season DESC NULLS LAST').each{r->tournamentDefaults[r.ext_tournament_id]=r as Map}
+                data=collect(from,through)
+            }
             Map planned=plan(sql,data)
             if(env.SYNC_APPLY!='true') { log('SYNC_DRY_RUN_COMPLETE',[inserts:planned.inserts.size(),rejects:planned.rejects.size(),conflicts:planned.sourceConflicts.size(),missing:planned.espnMissing.size()]);return }
             Map imported=apply(sql,data,planned)
