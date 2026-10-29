@@ -105,7 +105,11 @@ class RecentResultsSync {
         Map espn=new JsonSlurper().parseText(get(url)) as Map
         if(!(espn.events instanceof List) || !espn.events) throw new IllegalStateException('Empty ESPN tournament inventory')
         Map eventTournaments=[:] + ESPN_TOURNAMENTS
+        Map eventDraws=[:]
         espn.events.each { e ->
+            List main=e.groupings?.find{it.grouping.slug=='mens-singles'}?.competitions?.findAll{!it.round?.displayName?.startsWith('Qualifying')}?:[]
+            int draw=main.unique{it.id}.size()+1
+            if(draw in [8,12,16,24,28,32,48,56,64,96,128])eventDraws[e.id]=draw
             String id=e.id.split('-')[0]
             if(!eventTournaments[id]) {
                 String label=norm(e.name+' '+(e.venue?.displayName?:'')).replace('atp','')
@@ -217,7 +221,8 @@ class RecentResultsSync {
             Map roundMap=['Final':'F','Semifinal':'SF','Quarterfinal':'QF']
             String rd=roundMap[e.round]
             if(!rd && e.round.startsWith('Round ')) {
-                int first=matches.values().findAll{it.extTournament==tid && it.round.startsWith('R') && it.round!='RR'}.collect{num(it.round.substring(1))}.max()?:((template.defaultDraw?:32)>64?128:(template.defaultDraw?:32)>32?64:32)
+                int draw=eventDraws[e.eventId]?:template.defaultDraw?:tournamentDefaults[tid]?.draw_size?:32
+                int first=draw>64?128:draw>32?64:32
                 rd='R'+(first.intdiv(1 << (e.round.substring(6).toInteger()-1)))
             }
             if(!(rd in ROUNDS))return
