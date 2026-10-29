@@ -268,6 +268,14 @@ class RecentResultsSync {
             if(!byName[key].any{it.id==p.id})byName[key]<<p
         }
         sql.rows('SELECT alias,name FROM player_alias').each { a -> if(byName[norm(a.name)])byName[norm(a.alias)]=byName[norm(a.name)] }
+        // Older staged snapshots may predate the addition of ESPN identity IDs.
+        if(data.identities.values().any{!it.extId && !it.espnId && !byName[norm(it.name)]}) {
+            String u='https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates='+data.from.replace('-','')+'-'+data.through.replace('-','')+'&limit=1000'
+            Map board=new JsonSlurper().parseText(get(u)) as Map
+            board.events.each{e->e.groupings.each{g->g.competitions.each{c->c.competitors.each{a->
+                if(a.athlete?.displayName && data.identities[norm(a.athlete.displayName)])data.identities[norm(a.athlete.displayName)].espnId=a.id
+            }}}}
+        }
         Map resolved=[:], unknown=[:]
         data.identities.each { k,p ->
             def known=p.extId?byExt[p.extId]:null
@@ -283,7 +291,11 @@ class RecentResultsSync {
                     p.dob=bio.dateOfBirth.take(10);p.country=country
                     List same=players.values().findAll{it.dob==p.dob && it.country==p.country}
                     if(same.size()==1)known=same[0]
-                    else {p.extId=-(p.espnId as int);p.name=bio.displayName}
+                    else {
+                        List sourceIdentities=data.identities.values().findAll{it.extId && it.dob==p.dob && it.country==p.country}
+                        if(sourceIdentities.size()==1 && byExt[sourceIdentities[0].extId])known=byExt[sourceIdentities[0].extId]
+                        else {p.extId=-(p.espnId as int);p.name=bio.displayName}
+                    }
                 }
             }
             if(known)resolved[norm(p.name)]=known
