@@ -10,6 +10,7 @@ FROM eclipse-temurin:11-jre-jammy
 WORKDIR /app
 COPY --from=build /distribution/lib/ ./lib/
 COPY --from=build /source/data-load/build/install/data-load/ ./data-load/
+COPY --from=build /source/scripts/ ./scripts/
 ENV SPRING_PROFILES_ACTIVE=railway
 EXPOSE 8080
 USER 10001:10001

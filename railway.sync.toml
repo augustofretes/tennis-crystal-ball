@@ -1,0 +1,7 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "java -Xmx768m -cp '/app/data-load/lib/*' groovy.ui.GroovyMain /app/scripts/sync-recent-results.groovy --sync"
+restartPolicyType = "NEVER"
