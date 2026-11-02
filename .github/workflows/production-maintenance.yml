@@ -46,33 +46,3 @@ jobs:
                       raise
                   time.sleep(10)
           PY
-
-  prune:
-    needs: smoke
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: master
-          fetch-depth: 0
-      - name: Remove fully merged development branches
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
-          production_sha=$(git rev-parse refs/remotes/origin/master)
-          while IFS= read -r branch; do
-            case "$branch" in
-              work|weekly-results-sync|feat/*|fix/*|chore/*) ;;
-              *) continue ;;
-            esac
-            branch_sha=$(git rev-parse "refs/remotes/origin/$branch")
-            if git merge-base --is-ancestor "$branch_sha" "$production_sha"; then
-              git push --force-with-lease="refs/heads/$branch:$branch_sha" origin ":refs/heads/$branch"
-              echo "Removed merged branch: $branch"
-            else
-              echo "Kept branch with unmerged commits: $branch"
-            fi
-          done < <(git for-each-ref --format='%(refname:strip=3)' refs/remotes/origin/)

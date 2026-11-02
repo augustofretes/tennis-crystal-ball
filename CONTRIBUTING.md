@@ -14,11 +14,11 @@ environment. Merging a pull request to `master` releases both services.
    [RAILWAY.md](RAILWAY.md).
 
 After a successful push build on `master`, the Production maintenance workflow
-checks public health and populated player data, then removes fully merged
-`feat/*`, `fix/*`, `chore/*` and the retired `work` / `weekly-results-sync` branches.
-Branches with unmerged commits are retained. Deletions use a lease so a branch
-that advances during cleanup is not removed. This does not replace GitHub branch
-protection; configure protection for `master` separately.
+checks public health, the home page and populated player data. It has read-only
+repository permissions. Branch cleanup is a reviewed maintenance operation:
+verify that every commit is contained in `master` and use an exact SHA lease so
+a branch that advances during cleanup is not removed. Configure GitHub branch
+protection for `master` separately.
 
 Use Java 11. The CI command builds both artifacts and runs the unit tests:
 
