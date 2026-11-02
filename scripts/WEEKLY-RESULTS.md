@@ -87,6 +87,12 @@ requires the recorded repair and imports no results. Restart the web service
 after the refresh to clear application caches, then verify both profiles and
 the four reported match IDs.
 
+If maintenance runs under a different database owner, grant the worker `SELECT`
+and `UPDATE(derived_completed)` on `identity_repair_run` before the refresh.
+An explicit Elo start date replaces affected snapshots, and save failures stop
+completion. `IDENTITY_FORCE_DERIVED=true` permits a controlled retry of a
+previously marked refresh; saved Arnaldi Elo rows are checked before completion.
+
 `preview-arnaldi-repair.groovy` uses a database connection enforced as read-only.
 It compares the live plan with a preview that changes returned SQL rows in memory;
 it never applies the repair. It uses ESPN's complete results fallback and leaves
