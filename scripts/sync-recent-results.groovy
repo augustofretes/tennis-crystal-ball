@@ -16,7 +16,7 @@ class RecentResultsSync {
     static final Map ESPN_TOURNAMENTS=['414':'416','396':'322','942':'414','172':'520','49':'321','415':'440','27':'500','129':'311','444':'741','637':'8994','188':'540','306':'316','7':'314','22':'439','304':'319','400':'7290','424':'7480','888':'418','421':'421','718':'422','363':'6242','189':'560','441':'7581','1001':'4713','5':'329','959':'747','315':'5014','440':'7485','708':'9410','110':'496','452':'496','10':'337','23':'328']
     static String norm(Object s) {
         String n=Normalizer.normalize(s?.toString() ?: '', Normalizer.Form.NFD).replaceAll('\\p{M}','').toLowerCase(Locale.ROOT).replaceAll('[^a-z0-9]','')
-        [carlosalcarazgarfia:'carlosalcaraz',danielmeridaaguilar:'danielmerida',zhangzhizhen:'zhizhenzhang',shangjuncheng:'junchengshang',buyunchaokete:'yunchaoketebu',sunfajing:'fajingsun',hujia:'jiahu',zhouyi:'yizhou',cuijie:'jiecui'][n] ?: n
+        [carlosalcarazgarfia:'carlosalcaraz',danielmeridaaguilar:'danielmerida',zhangzhizhen:'zhizhenzhang',shangjuncheng:'junchengshang',wuyibing:'yibingwu',buyunchaokete:'yunchaoketebu',sunfajing:'fajingsun',hujia:'jiahu',zhouyi:'yizhou',cuijie:'jiecui'][n] ?: n
     }
     static Integer num(Object s) { s == null || s.toString().trim() == '' ? null : Integer.valueOf(s.toString()) }
     static String entry(Object value) {
@@ -262,7 +262,15 @@ class RecentResultsSync {
         Sql sql=Sql.newInstance('jdbc:postgresql://'+env.PGHOST+':'+(env.PGPORT?:'5432')+'/'+env.PGDATABASE+'?currentSchema=tcb,public',env.PGUSER,env.PGPASSWORD,'org.postgresql.Driver')
         sql.execute('SET search_path=tcb,public'); sql
     }
+    static List identityConflicts(Map source,Map stored,Map byName) {
+        List fields=[]
+        if(norm(source.name)!=norm(stored.name) && !(byName[norm(source.name)]?:[]).any{it.id==stored.id})fields<<'name'
+        if(source.dob && stored.dob && source.dob!=stored.dob)fields<<'dob'
+        if(source.country && stored.country && source.country!=stored.country)fields<<'country'
+        fields
+    }
     Map plan(Sql sql,Map data) {
+        List rejects=[]
         Map byExt=[:], byName=[:], players=[:]
         sql.rows('SELECT p.player_id,full_name(p.first_name,p.last_name) AS name,p.country_id,p.dob::text AS dob,pm.ext_player_id FROM player p LEFT JOIN player_mapping pm USING(player_id)').each { r ->
             Map p=[id:r.player_id,name:r.name,country:r.country_id,dob:r.dob,extId:r.ext_player_id]
@@ -298,6 +306,11 @@ class RecentResultsSync {
             }
             if(!known && !p.extId && p.espnId) {
                 Map bio=new JsonSlurper().parseText(get('https://sports.core.api.espn.com/v2/sports/tennis/athletes/'+p.espnId)) as Map
+                if(bio.displayName && norm(bio.displayName)!=norm(p.name) &&
+                    !(byName[norm(p.name)]?:[]).any{a->(byName[norm(bio.displayName)]?:[]).any{b->a.id==b.id}}) {
+                    rejects<<[reason:'Player identity conflict',source:[name:p.name,espnId:p.espnId],stored:[name:bio.displayName],fields:['name']]
+                    return
+                }
                 String country=countryCode(bio.flag as Map)
                 if(bio.dateOfBirth && country) {
                     p.dob=bio.dateOfBirth.take(10);p.country=country
@@ -310,7 +323,14 @@ class RecentResultsSync {
                     }
                 }
             }
-            if(known)resolved[norm(p.name)]=players[canonicalPlayer[known.id]?:known.id]
+            if(known) {
+                List fields=identityConflicts(p,known,byName)
+                if(fields) {
+                    rejects<<[reason:'Player identity conflict',source:[name:p.name,extId:p.extId,espnId:p.espnId,dob:p.dob,country:p.country],stored:known,fields:fields]
+                    return
+                }
+                resolved[norm(p.name)]=players[canonicalPlayer[known.id]?:known.id]
+            }
             else if(p.country && p.dob && p.extId) resolved[norm(p.name)]=[name:p.name,country:p.country,dob:p.dob,extId:p.extId,height:p.height,hand:p.hand,isNew:true]
             else unknown[norm(p.name)]=p
             if(resolved[norm(p.name)])resolved[k]=resolved[norm(p.name)]
@@ -322,7 +342,7 @@ class RecentResultsSync {
             r.winner_id=canonicalPlayer[r.winner_id]?:r.winner_id;r.loser_id=canonicalPlayer[r.loser_id]?:r.loser_id
             existing[[r.tournament_id,r.season,r.round,[r.winner_id,r.loser_id].sort().join(':')].join('|')]=r
         }
-        List inserts=[], rejects=[], duplicates=[], enrichments=[];Map pending=[:]
+        List inserts=[], duplicates=[], enrichments=[];Map pending=[:]
         Set allowedEntries=sql.rows("SELECT enumlabel FROM pg_enum WHERE enumtypid='tournament_entry'::regtype")*.enumlabel as Set
         data.matches.each { m ->
             m.winnerEntry=entry(m.winnerEntry);m.loserEntry=entry(m.loserEntry)
@@ -343,6 +363,16 @@ class RecentResultsSync {
                     if(!prior.complete_stats && m.wstats.sv_pt && m.lstats.sv_pt) {m.existingMatchId=prior.match_id;enrichments<<m}
                 }
             }else {
+                // A singles knockout participant can play only once per round.
+                // Surface a conflicting identity before proposing another result.
+                List conflicts=!(t.level in ['D','T','L','F']) && m.round!='RR'?existing.values().findAll { r ->
+                    r.tournament_id==t.tournament_id && r.season==m.season && r.round==m.round &&
+                        ((!w.isNew && w.id in [r.winner_id,r.loser_id]) || (!l.isNew && l.id in [r.winner_id,r.loser_id]))
+                }:[]
+                if(conflicts) {
+                    rejects<<[key:m.key,reason:'Existing match identity conflict',matchIds:conflicts*.match_id,sourcePlayers:[w.id,l.id],storedPlayers:conflicts.collect{[it.winner_id,it.loser_id]}]
+                    return
+                }
                 String winnerKey=(w.id?:'external:'+w.extId).toString(),loserKey=(l.id?:'external:'+l.extId).toString()
                 String identity=[t.tournament_id,m.season,m.round,[winnerKey,loserKey].sort().join(':')].join('|')
                 Map other=pending[identity]

@@ -43,6 +43,8 @@ Run parser checks with the existing data-load distribution:
 ```sh
 java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain \
   scripts/sync-recent-results.groovy --test
+java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain \
+  scripts/test-result-identities.groovy
 ```
 
 `--collect FROM THROUGH` writes collection.json and `--plan collection.json`
@@ -55,3 +57,39 @@ from result_sync_seed. Clear this override after the backfill so weekly runs fet
 fresh sources. ESPN-only new identities are checked against country and birthdate;
 their negative player_mapping IDs reserve a namespace separate from positive
 Tennis Abstract/Sackmann IDs.
+
+Identity resolution checks normalized names (including explicit `player_alias`
+entries), birth dates and country against a mapped player before accepting that
+mapping. ESPN biography responses must also agree with the requested identity.
+Conflicts are reported in `validation.json` and block the write transaction.
+A knockout match that shares a participant with a different stored pairing in
+the same event/season/round is rejected as an identity conflict. The bracket
+size guard remains enabled.
+
+The reviewed repair in `repairs/2026-11-02-arnaldi.sql` addresses two distinct
+players: Matteo Arnaldi (54581, external ID 208286) and Harry Thursfield (52898,
+external ID 210162). Its manifest identifies 165 verified matches and 235 ranking
+rows. It preserves Thursfield's 30 verified ranking rows and his own mapping;
+one identical Arnaldi ranking already exists and is retained. The correction
+also restores the two profiles and invalidates misattributed derived Elo rows.
+It does not create a player alias or change scores, rounds, match IDs or raw stats.
+
+Production execution requires explicit approval for this data repair. After
+approval, use `repairs/run-arnaldi-repair.sh` in the maintenance service with both
+repair files present. It creates a durable schema backup on `/backups`, tests the
+transaction with `ROLLBACK`, then applies it. Exact row checks reject drift and
+repeat execution. Original rows are also retained in `identity_repair_backup`.
+Keep the full dump until verification is complete; it includes derived tables.
+
+Run `repairs/refresh-arnaldi-derived.groovy` using the data-load distribution to
+recompute Elo from 2022-05-09, materialized statistics and records. That helper
+requires the recorded repair and imports no results. Restart the web service
+after the refresh to clear application caches, then verify both profiles and
+the four reported match IDs.
+
+`preview-arnaldi-repair.groovy` uses a database connection enforced as read-only.
+It compares the live plan with a preview that changes returned SQL rows in memory;
+it never applies the repair. It uses ESPN's complete results fallback and leaves
+raw statistics absent. An expected 17-insert preview does not authorize an import:
+after the approved correction, run a fresh ordinary `--plan collection.json`
+against the corrected production database and review validation before applying.
