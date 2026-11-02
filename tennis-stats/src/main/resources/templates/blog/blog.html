@@ -6,7 +6,6 @@
 	<title>Blog</title>
 	<template>
 	<meta name="description" content="Ultimate Tennis Statistics and Tennis Crystal Ball match prediction and tournament forecasts"/>
-	<meta property="fb:admins" content="UltmTennisStats"/>
 	<script type="text/javascript" th:inline="javascript">
 		$(function() {
 			var $pill = $("#[(${post})]Pill");
@@ -17,9 +16,6 @@
 		});
 	</script>
 	<style type="text/css">
-		body {
-			background: url("/images/home-bg.jpg") repeat;
-		}
 		.component-header {
 			margin: 0;
 		}
@@ -47,7 +43,6 @@
 					</ul>
 				</div>
 				<div class="col-lg-9">
-					<th:block th:include="fragments/ads :: responsive"/>
 					<div class="tab-content">
 						<div id="newBlogSection" class="tab-pane fade"><div class="loading"></div></div>
 						<div id="eloKfactorTweaks" class="tab-pane fade"><div class="loading"></div></div>
@@ -73,12 +68,6 @@
 				</th:block>
 				<th:block th:case="*" th:include="fragments/goatTopN :: goatTopN"/>
 			</th:block>
-			<th:block th:include="fragments/promotion :: facebook"/>
-			<th:block th:include="fragments/promotion :: twitter('/blog?post=' + ${post})"/>
-			<br/>
-			<th:block th:include="fragments/ads :: responsiveLink"/>
-			<th:block th:include="fragments/promotion :: paypal"/>
-			<th:block th:include="fragments/promotion :: license"/>
 		</div>
 	</div>
 	<th:block th:include="fragments/deviceDetector :: deviceDetectors"/>

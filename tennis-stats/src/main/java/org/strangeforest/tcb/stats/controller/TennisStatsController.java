@@ -29,30 +29,17 @@ public class TennisStatsController extends PageController {
 	@Autowired private TournamentForecastService forecastService;
 	@Autowired private GOATListService goatListService;
 	@Autowired private RankingsService rankingsService;
-	@Autowired private ContentService contentService;
 
 	private static final String FORECAST_ORDER_BY = Stream.of(InProgressEventsResource.DEFAULT_ORDER).map(OrderBy::toString).collect(joining(", "));
 
 	@GetMapping("/")
 	public ModelAndView index() {
 		var hasInProgressEvents = forecastService.getInProgressEventsTable(InProgressEventFilter.ALL_IN_PROGRESS, null, FORECAST_ORDER_BY, 20, 1).getTotal() > 0;
-		var playerOfTheWeek = contentService.getPlayerOfTheWeek();
-		var recordOfTheDay = contentService.getRecordOfTheDay();
-		var featuredBlogPost = contentService.getFeaturedBlogPost();
-		var featuredPage = contentService.getFeaturedPage();
 		var goatTopN = goatListService.getGOATTopN(10);
 
 		var modelMap = new ModelMap();
 		modelMap.addAttribute("hasInProgressEvents", hasInProgressEvents);
 		modelMap.addAttribute("currentSeason", dataService.getLastSeason());
-		modelMap.addAttribute("playerOfTheWeek", playerOfTheWeek);
-		if (playerOfTheWeek.hasTitle()) {
-			modelMap.addAttribute("levels", TournamentLevel.asMap());
-			modelMap.addAttribute("surfaces", Surface.asMap());
-		}
-		modelMap.addAttribute("recordOfTheDay", recordOfTheDay);
-		modelMap.addAttribute("featuredBlogPost", featuredBlogPost);
-		modelMap.addAttribute("featuredPage", featuredPage);
 		modelMap.addAttribute("goatTopN", goatTopN);
 		return new ModelAndView("index", modelMap);
 	}
@@ -81,8 +68,7 @@ public class TennisStatsController extends PageController {
 
 	@GetMapping("/contact")
 	public ModelAndView contact() {
-		var goatTopN = goatListService.getGOATTopN(10);
-		return new ModelAndView("contact", "goatTopN", goatTopN);
+		return new ModelAndView("contact");
 	}
 
 	private static final String MAX_AGE_1_HOUR = CacheControl.maxAge(1L, TimeUnit.HOURS).cachePublic().getHeaderValue();
@@ -110,13 +96,12 @@ public class TennisStatsController extends PageController {
 
 	@GetMapping("/liveScores")
 	public ModelAndView liveScores() {
-		return new ModelAndView("liveScores", "skipAds", true);
+		return new ModelAndView("redirect:/tournamentEvents");
 	}
 
 	@GetMapping("/donationThankYou")
 	public ModelAndView donationThankYou() {
-		var goatTopN = goatListService.getGOATTopN(10);
-		return new ModelAndView("donationThankYou", "goatTopN", goatTopN);
+		return new ModelAndView("redirect:/");
 	}
 
 	@Value("${tennis-stats.down-for-maintenance:false}")

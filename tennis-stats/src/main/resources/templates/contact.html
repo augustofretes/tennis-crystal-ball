@@ -1,55 +1,19 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<!--/*@thymesVar id="goatTopN" type="java.util.List<org.strangeforest.tcb.stats.model.PlayerRanking>"*/-->
 <head th:replace="fragments/head :: commonHead(~{::title/text()}, false, ~{::template})">
-	<title>About</title>
+	<title>Feedback &amp; contributions</title>
 	<template>
-	<meta property="fb:admins" content="UltmTennisStats"/>
-	<script type="text/javascript">
-		$(function() {
-			loadRankingTopN("RANK");
-			bindPopovers();
-		});
-	</script>
-	<style type="text/css">
-		body {
-			background: url("/images/home-bg.jpg") repeat;
-		}
-		.component-header {
-			margin: 0;
-		}
-	</style>
+	<meta name="description" content="Report an issue, suggest an improvement, or contribute to this Ultimate Tennis Statistics fork."/>
 	</template>
 </head>
 <body class="container">
 	<header th:include="fragments/header :: title"></header>
-	<div class="row">
-		<div class="col-lg-10 col-md-9">
-			<h1 style="margin-top: 0; margin-bottom: 20px"><a href="/" title="Home"><img src="/images/uts-logo.png" class="uts-logo" alt="UTS"/> <th:block th:include="fragments/promotion :: logo"/></a></h1>
-			<h4 class="text-nowrap"><i class="fa fa-vcard"></i> Contact</h4>
-			<p>
-				For suggestions for additional features, tweaks to the current features and for any web site and data issues, please e-mail me at <a href="mailto:mcekovic@gmail.com" target="_blank" rel="noopener noreferrer">mcekovic@gmail.com</a> or log a <a href="https://github.com/mcekovic/tennis-crystal-ball/issues" target="_blank" rel="noopener noreferrer" class="external">GitHub issue</a>.<br/>
-				If you would like to contribute or collaborate, e-mail me as well.
-			</p>
-			<th:block th:include="fragments/ads :: responsive"/>
-			<h4 class="text-nowrap" style="margin-top: 25px"><i class="fa fa-comment"></i> Comments and Suggestions</h4>
-			<p>
-				Please add you quick comments and suggestions here:
-			</p>
-			<div class="fb-comments" data-href="http://www.ultimatetennisstatistics.com/contact" data-width="600" data-numposts="10"></div>
-		</div>
-		<div class="col-lg-2 col-md-3">
-			<th:block th:include="fragments/goatTopN :: goatTopN"/>
-			<div id="rankingTopN"></div>
-			<th:block th:include="fragments/promotion :: facebook"/>
-			<th:block th:include="fragments/promotion :: twitter('')"/>
-			<br/>
-			<th:block th:include="fragments/ads :: responsive"/>
-			<th:block th:include="fragments/promotion :: paypal"/>
-			<th:block th:include="fragments/promotion :: license"/>
-		</div>
-	</div>
-	<th:block th:include="fragments/deviceDetector :: deviceDetectors"/>
+	<main class="club-contact">
+		<p class="club-eyebrow">Help improve the reference</p>
+		<h1>Feedback &amp; contributions</h1>
+		<p>Found a data issue or have an idea for the app? <a href="https://github.com/augustofretes/tennis-crystal-ball/issues" target="_blank" rel="noopener noreferrer">Open an issue</a> with the player, match, or page involved and what you expected to see.</p>
+		<p>To contribute a fix or improvement, visit <a href="https://github.com/augustofretes/tennis-crystal-ball" target="_blank" rel="noopener noreferrer">this fork's source repository</a>.</p>
+	</main>
 	<footer th:include="fragments/footer :: copy"></footer>
 </body>
 </html>

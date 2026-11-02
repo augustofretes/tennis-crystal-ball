@@ -99,7 +99,6 @@
 </head>
 <body class="container">
 	<header th:include="fragments/header :: title"></header>
-	<th:block th:include="fragments/ads :: responsive"/>
 	<p class="club-eyebrow">Player profile</p>
 	<h1 class="club-player-heading">
 		<img th:src="@{/images/flags/{code}.png(code=${player.country.code})}" src="/images/flags/ch.png" th:title="${player.country.id}" title="SUI" width="24" height="20" alt=""/>
