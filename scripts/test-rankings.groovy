@@ -4,7 +4,7 @@ import java.sql.Connection
 import java.time.LocalDate
 
 class RankingFixtureSql extends Sql {
-    List players=[],rankings=[],writes=[]
+    List players=[],rankings=[],writes=[],priorRankings=[]
     String latest='2026-06-08'
     boolean lock=true
     RankingFixtureSql(){super([isClosed:{false}] as Connection)}
@@ -14,7 +14,16 @@ class RankingFixtureSql extends Sql {
         new groovy.sql.GroovyRowResult([date:latest])
     }
     List rows(String query) {assert query.contains('FROM player');players}
-    List rows(String query,List params) {assert query.contains('WHERE rank_date');rankings}
+    List rows(String query,List params) {
+        assert query.contains('WHERE rank_date')
+        query.startsWith('SELECT player_id FROM')?priorRankings:rankings
+    }
+    groovy.sql.GroovyRowResult firstRow(String query,List params) {
+        assert query.startsWith('INSERT INTO player(')
+        int id=70000+players.size()
+        players<<[player_id:id,name:params[0]+' '+params[1],dob:params[2],country:params[3]]
+        new groovy.sql.GroovyRowResult([player_id:id])
+    }
     List executeInsert(String query,List params) {
         writes<<params
         if(!rankings.any{it.player_id==params[1]})rankings<<[player_id:params[1],rank:params[2],rank_points:params[3]]
@@ -63,4 +72,50 @@ sql.lock=true;sync.apply(sql,data());assert sql.rankings.size()==500
 assert sync.plan(sql,data()).inserts==0
 sql.latest=monday.plusWeeks(1).toString();reject{sync.plan(sql,data())}
 def changed=data();changed.rows[0].points--;reject{sync.plan(new RankingFixtureSql(),changed)}
+// Prefer a known birthdate to an incomplete duplicate, and otherwise retain
+// the already-ranked profile only when that candidate is unique.
+def fixture={ -> def db=new RankingFixtureSql();db.players=rows.collect{[player_id:it.rank,name:it.name,dob:it.dob,country:it.country]};db }
+def duplicates=fixture()
+duplicates.players<<[player_id:999,name:'Player 6',dob:'2000-01-01',country:'USA']
+assert sync.plan(duplicates,data()).rejects.size()==1
+duplicates.priorRankings=[[player_id:999]]
+assert sync.plan(duplicates,data()).rows.find{it.rank==6}.playerId==999
+duplicates.priorRankings=[[player_id:6],[player_id:999]]
+assert sync.plan(duplicates,data()).rejects.size()==1
+duplicates.players[-1].dob=null
+def preferred=sync.plan(duplicates,data());assert !preferred.rejects && preferred.rows.find{it.rank==6}.playerId==6
+
+Sync.IDENTITIES.bindings.each { b ->
+    def db=fixture(), d=data()
+    d.rows[5].putAll([name:b.name,dob:b.sourceDob,country:b.sourceCountry,verifiedProfile:[url:b.profile,dob:b.profileDob]])
+    d.sha256=Sync.digest(d)
+    db.players[5]=[player_id:b.playerId,name:b.name,dob:b.storedDob,country:b.storedCountry]
+    def original=new LinkedHashMap(db.players[5])
+    def approved=sync.plan(db,d)
+    assert !approved.rejects && approved.rows.find{it.rank==6}.playerId==b.playerId
+    assert db.players[5]==original // Bindings never repair profile fields.
+    d.rows[5].remove('verifiedProfile');d.sha256=Sync.digest(d)
+    assert sync.plan(db,d).rejects.size()==1
+    d.rows[5].verifiedProfile=[url:b.profile,dob:b.profileDob];d.sha256=Sync.digest(d)
+    db.players[5].dob='1970-01-01'
+    assert sync.plan(db,d).rejects.size()==1 // Exact stored preconditions reject drift.
+}
+Sync.IDENTITIES.newPlayers.each { n ->
+    def db=fixture(), d=data()
+    d.rows[5].putAll([name:n.name,dob:n.dob,country:n.country,verifiedProfile:[url:n.profile,dob:n.dob]])
+    d.sha256=Sync.digest(d)
+    db.players[5]=[player_id:n.olderPlayerId,name:n.name,dob:n.olderDob,country:n.olderCountry]
+    def older=new LinkedHashMap(db.players[5])
+    def plan=sync.plan(db,d)
+    assert !plan.rejects && plan.newPlayers.size()==1
+    assert plan.rows.find{it.rank==6}.newPlayer
+    d.rows[5].remove('verifiedProfile');d.sha256=Sync.digest(d)
+    assert sync.plan(db,d).rejects.size()==1
+    d.rows[5].verifiedProfile=[url:n.profile,dob:n.dob];d.sha256=Sync.digest(d)
+    sync.apply(db,d)
+    assert db.players[5]==older
+    def current=db.players.find{it.name==n.name && it.dob==n.dob}
+    assert current.player_id!=older.player_id
+    assert !sync.plan(db,d).newPlayers && sync.plan(db,d).inserts==0
+}
 println 'RANKINGS_TESTS_PASSED'

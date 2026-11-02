@@ -14,12 +14,16 @@ Tennis Abstract lacks a birthdate, the matching TennisLive profile supplies it.
 The source names have explicit normalization rules for documented full-name and
 transliteration variants; these never create database aliases or mappings.
 
-A player must resolve uniquely by name and country, with a matching birthdate
-when the stored profile has one. A missing stored birthdate is allowed but is
-not filled in by this import. A conflicting birthdate, ambiguous name, missing
-player or conflicting stored ranking blocks the entire import. No player,
-external mapping, match, Elo or profile row is changed. Applying rechecks the
-plan under the same advisory lock used by the match worker, inserts missing
+A player resolves by name, country and birthdate, using a known birthdate before
+an incomplete duplicate. A single previously-ranked profile resolves otherwise
+identical duplicates. The exact guarded cases in [RANKING-IDENTITIES.md](RANKING-IDENTITIES.md)
+cover six legacy metadata differences and four current players with older namesakes.
+A missing stored birthdate is allowed but is not filled in by this import. An
+unreviewed conflicting birthdate, ambiguous name, missing player or conflicting
+stored ranking blocks the entire import. The four reviewed
+current players receive separate minimal profiles after independent identity
+verification. Existing player fields, external mappings, matches and Elo remain
+unchanged. Applying rechecks the plan under the same advisory lock used by the match worker, inserts missing
 rankings and refreshes the four ranking materialized views in one transaction.
 Retries accept identical rows without overwriting them.
 

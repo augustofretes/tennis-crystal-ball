@@ -13,6 +13,9 @@ class WeeklyRankingsSync {
     static final Map URLS = [points:'https://www.tennislive.net/atp/ranking/',
         identities:'https://www.tennisabstract.com/reports/atpRankings.html',
         check:'https://www.tennisexplorer.com/ranking/atp-men/']
+    static final Map IDENTITIES = new JsonSlurper().parse(new File(
+        new File(WeeklyRankingsSync.protectionDomain.codeSource.location.toURI()).parentFile,
+        'ranking-identities.json')) as Map
     Map env
     WeeklyRankingsSync(Map environment=System.getenv()) { env=environment }
     static String norm(Object value) {
@@ -26,7 +29,12 @@ class WeeklyRankingsSync {
          khumounsultanov:'khumoyunsultanov',santiagofarodrigueztaverna:'santiagorodrigueztaverna',
          pauloandresaraivadossantos:'paulosaraivadossantos',olukayodealafiadaminaayeni:'alafiaayeni',
          murkelalejandrodellienvelasco:'murkeldellien',nikitamashtakov:'mykytamashtakov',
-         gabiadrianboitan:'adrianboitan',juanalejandrohernandezserrano:'juanalejandrohernandez'][n] ?: n
+         gabiadrianboitan:'adrianboitan',juanalejandrohernandezserrano:'juanalejandrohernandez',
+         lloydgeorgemuirheadharris:'lloydharris',marcelotomasbarriosvera:'tomasbarriosvera',christiangarin:'cristiangarin',
+         juanpablovarillaspatinosamudio:'juanpablovarillas',dominicstephanstricker:'dominicstricker',
+         felipemeligenirodriguesalves:'felipemeligenialves',moezchargui:'moezechargui',
+         danielelahigalanriveros:'danielelahigalan',holgervitusnodskovrune:'holgerrune',
+         martindammjr:'martindamm',migueltobonjr:'migueltobon'][n] ?: n
     }
     static void log(String type,Object value) { println type+' '+JsonOutput.toJson(value) }
     String get(String url) {
@@ -44,7 +52,8 @@ class WeeklyRankingsSync {
             String points=strong.size()>1?strong[1].ownText().replace(',','').trim():''
             [rank:rank.isInteger()?rank.toInteger():null,points:points.isInteger()?points.toInteger():null,
              name:article.select('a[href^=/atp/] span.block.truncate').text(),
-             profile:'https://www.tennislive.net'+article.select('a[href^=/atp/]').attr('href')]
+             profile:'https://www.tennislive.net'+article.select('a[href^=/atp/]').attr('href'),
+             country:article.select('span.hidden.items-center > span').text()]
         }
         [date:date,rows:rows]
     }
@@ -132,6 +141,24 @@ class WeeklyRankingsSync {
             Thread.sleep(1200)
         }
         Map data=reconcile(points,identities,parseCheck(get(URLS.check)))
+        // These explicit cases require a second, distinct player profile. The
+        // registry never edits the six legacy profiles or their historical data.
+        (IDENTITIES.bindings+IDENTITIES.newPlayers).each { expected ->
+            Map row=data.rows.find{norm(it.name)==norm(expected.name)}
+            if(!row)return
+            String expectedDob=expected.sourceDob ?: expected.dob
+            String expectedCountry=expected.sourceCountry ?: expected.country
+            if(row.dob!=expectedDob || row.country!=expectedCountry)throw new IllegalStateException('Reviewed source identity changed: '+row.name)
+            Map point=points.rows.find{norm(it.name)==norm(row.name)}
+            if(point.profile!=expected.profile)throw new IllegalStateException('Reviewed profile URL changed: '+row.name)
+            Map person=profile(get(expected.profile))
+            if(norm(person.name)!=norm(row.name) || person.dob!=(expected.profileDob ?: expected.dob))
+                throw new IllegalStateException('Reviewed profile identity changed: '+row.name)
+            if(expected.pointsCountry && point.country!=expected.pointsCountry)throw new IllegalStateException('Player country sources disagree: '+row.name)
+            row.verifiedProfile=[url:expected.profile,dob:person.dob]
+            Thread.sleep(1200)
+        }
+        data.sha256=digest(data)
         log('RANKINGS_SOURCE_VERIFIED',[date:data.date,rows:data.rows.size(),sha256:data.sha256,top10:data.rows.take(10)])
         data
     }
@@ -145,14 +172,42 @@ class WeeklyRankingsSync {
         String latest=sql.firstRow('SELECT max(rank_date)::text AS date FROM player_ranking').date
         if(latest && data.date<latest) throw new IllegalStateException('Ranking snapshot would go backwards')
         Map names=sql.rows('SELECT player_id,full_name(first_name,last_name) AS name,dob::text AS dob,country_id AS country FROM player').groupBy{norm(it.name)}
-        List rejects=[],resolved=[]
+        Set previouslyRanked=latest?sql.rows('SELECT player_id FROM player_ranking WHERE rank_date=?::date',[latest])*.player_id as Set:[] as Set
+        List rejects=[],resolved=[],newPlayers=[],notes=[]
         data.rows.each { r ->
             List candidates=names[norm(r.name)]?:[]
-            List exact=candidates.findAll{(!it.dob || it.dob==r.dob) && it.country==r.country}
-            if(exact.size()!=1) rejects<<[rank:r.rank,name:r.name,reason:'Player name, birthdate and country must identify exactly one existing player']
-            else resolved<<r+[playerId:exact[0].player_id]
+            List exact=candidates.findAll{it.dob==r.dob && it.country==r.country}
+            if(!exact)exact=candidates.findAll{!it.dob && it.country==r.country}
+            if(exact.size()>1) {
+                List current=exact.findAll{it.player_id in previouslyRanked}
+                if(current.size()==1) {
+                    exact=current
+                    notes<<[name:r.name,reason:'Same-identity duplicate; retaining the existing ranked profile',playerId:current[0].player_id]
+                }
+            }
+            if(exact.size()==1) {resolved<<r+[playerId:exact[0].player_id];return}
+            Map binding=IDENTITIES.bindings.find{norm(it.name)==norm(r.name)}
+            if(binding && r.dob==binding.sourceDob && r.country==binding.sourceCountry &&
+                r.verifiedProfile==[url:binding.profile,dob:binding.profileDob]) {
+                List bound=candidates.findAll{it.player_id==binding.playerId && it.dob==binding.storedDob && it.country==binding.storedCountry}
+                if(bound.size()==1) {
+                    resolved<<r+[playerId:binding.playerId]
+                    notes<<[name:r.name,reason:'Reviewed legacy profile difference; profile is unchanged',playerId:binding.playerId,storedDob:binding.storedDob,storedCountry:binding.storedCountry]
+                    return
+                }
+            }
+            Map fresh=IDENTITIES.newPlayers.find{norm(it.name)==norm(r.name)}
+            if(fresh && !exact && r.dob==fresh.dob && r.country==fresh.country &&
+                r.verifiedProfile==[url:fresh.profile,dob:fresh.dob] &&
+                candidates.any{it.player_id==fresh.olderPlayerId && it.dob==fresh.olderDob && it.country==fresh.olderCountry}) {
+                newPlayers<<r
+                resolved<<r+[newPlayer:true]
+                return
+            }
+            rejects<<[rank:r.rank,name:r.name,reason:'Player name, birthdate and country must identify exactly one existing player']
         }
-        if(resolved*.playerId.unique().size()!=resolved.size()) rejects<<[reason:'Multiple rankings resolve to one player']
+        List knownIds=resolved.findAll{!it.newPlayer}*.playerId
+        if(knownIds.unique().size()!=resolved.count{!it.newPlayer}) rejects<<[reason:'Multiple rankings resolve to one player']
         Map existing=sql.rows('SELECT player_id,rank,rank_points FROM player_ranking WHERE rank_date=?::date',[data.date]).collectEntries{[(it.player_id):it]}
         existing.values().findAll{it.rank<=TOP && !(it.player_id in resolved*.playerId)}.each { old ->
             rejects<<[rank:old.rank,reason:'Stored top ranking belongs to an unexpected player; explicit repair required']
@@ -161,7 +216,7 @@ class WeeklyRankingsSync {
             def old=existing[r.playerId]
             if(old && (old.rank!=r.rank || old.rank_points!=r.points)) rejects<<[rank:r.rank,name:r.name,reason:'Existing ranking disagrees; explicit repair required']
         }
-        Map plan=[date:data.date,previousDate:latest,rows:resolved,inserts:resolved.count{!existing[it.playerId]},rejects:rejects,sha256:data.sha256]
+        Map plan=[date:data.date,previousDate:latest,rows:resolved,newPlayers:newPlayers.collect{[name:it.name,dob:it.dob,country:it.country]},identityNotes:notes,inserts:resolved.count{it.newPlayer || !existing[it.playerId]},rejects:rejects,sha256:data.sha256]
         log('RANKINGS_IMPORT_PLAN',plan.findAll{k,v->k!='rows'});plan
     }
     void apply(Sql sql,Map data) {
@@ -171,12 +226,16 @@ class WeeklyRankingsSync {
             Map planned=plan(sql,data) // Recheck identities and stored rows under the ingestion lock.
             if(planned.rejects) throw new IllegalStateException('Ranking import validation failed')
             planned.rows.each { r ->
+                if(r.newPlayer) {
+                    String[] name=r.name.split(' ',2)
+                    r.playerId=sql.firstRow('INSERT INTO player(first_name,last_name,dob,country_id,active) VALUES (?,?,?::date,?,true) RETURNING player_id',[name[0],name[1],r.dob,r.country]).player_id
+                }
                 sql.executeInsert('INSERT INTO player_ranking(rank_date,player_id,rank,rank_points) VALUES (?::date,?,?,?) ON CONFLICT (rank_date,player_id) DO NOTHING',[data.date,r.playerId,r.rank,r.points])
             }
             ['player_current_rank','player_best_rank','player_best_rank_points','player_year_end_rank'].each { view ->
                 sql.execute('REFRESH MATERIALIZED VIEW '+view)
             }
-            completed=[date:data.date,inserted:planned.inserts,sha256:data.sha256]
+            completed=[date:data.date,inserted:planned.inserts,newPlayers:planned.newPlayers.size(),sha256:data.sha256]
         }
         log('RANKINGS_IMPORT_COMPLETE',completed)
     }
