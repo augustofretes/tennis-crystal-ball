@@ -101,22 +101,6 @@
 			loadRankingTopN("RANK");
 		});
 	</script>
-	<style type="text/css">
-		body {
-			background: url("/images/home-bg.jpg") repeat;
-		}
-		.carousel-indicators {
-			left: 75%;
-			bottom: -10px;
-			width: 25%;
-			margin-left: 0;
-			padding-right: 10px !important;
-			text-align: right;
-		}
-		.component-header {
-			margin: 0;
-		}
-	</style>
 	<script type="application/ld+json">{
 		"@context": "http://schema.org",
 		"@type": "WebSite",
@@ -127,19 +111,33 @@
 	}</script>
 	</template>
 </head>
-<body class="container">
+<body class="container club-home">
 	<header th:include="fragments/header :: title"></header>
-	<div class="row">
-		<div class="col-lg-10 col-md-9">
-			<h1 style="margin-top: 0; margin-bottom: 20px"><img src="/images/uts-logo.png" class="uts-logo" alt="UTS"/> <th:block th:include="fragments/promotion :: logo"/></h1>
-			<p>
-				Welcome to <th:block th:include="fragments/promotion :: logo"/>, the ultimate men's tennis statistics destination for the die-hard tennis fans!<br/>
-				Be it latest or historical results, in-match statistics, records or all-time greats comparisons, Elo ratings or tournament forecasts, you will find it here. More details at <a href="/about" class="text-nowrap"><i class="fa fa-question-circle"></i> About</a> page.
-			</p>
-			<p><b>Note: </b><th:block th:include="fragments/promotion :: logo"/> has trouble obtaining new data updates, as the current free data source is not available anymore. Work is in progress to switch to the alternative data source.</p>
+	<section class="club-hero" aria-labelledby="club-home-title">
+		<div>
+			<p class="club-eyebrow">The Open Era, in perspective</p>
+			<h1 id="club-home-title">Every player.<br/><em>Every chapter.</em></h1>
+			<p class="club-hero-description">Explore the players, rivalries, and numbers that tell the story of men's tennis. From the first Open Era champions to the all-time greats.</p>
+			<div class="club-hero-actions">
+				<a href="/goatList" class="btn btn-primary">Explore the GOAT list <i class="fa fa-long-arrow-right" aria-hidden="true"></i></a>
+				<a href="/headToHead" class="club-hero-link">Compare two players <i class="fa fa-long-arrow-right" aria-hidden="true"></i></a>
+			</div>
+		</div>
+		<div class="club-hero-aside" aria-hidden="true">
+			<svg class="club-hero-court" viewBox="0 0 280 170" fill="none" stroke="currentColor" stroke-width="1.2">
+				<path d="M54 16h172l40 135H14zM71 16 42 151M209 16l29 135M34 84h212M64 43h152M48 119h184M140 43v76"/>
+				<path d="M22 84h236M22 78v12M258 78v12" stroke-width="2"/>
+			</svg>
+			<p class="club-hero-caption">A deeper appreciation of the game.</p>
+		</div>
+	</section>
+	<div class="row club-home-layout">
+		<div class="col-lg-9 col-md-8">
+			<p class="club-data-notice"><b>Data update: </b><th:block th:include="fragments/promotion :: logo"/> has trouble obtaining new data updates, as the current free data source is not available anymore. Work is in progress to switch to the alternative data source.</p>
 			<th:block th:include="fragments/ads :: responsive"/>
 			<th:block th:if="${hasInProgressEvents}">
-			<h4 class="text-nowrap" style="margin-top: 25px"><i class="fa fa-eye"></i> Latest Forecasts <sup style="font-size: 60%"><i class="text-muted">Powered by <th:block th:include="fragments/promotion :: tcb"/></i></sup></h4>
+			<h2 class="club-section-title"><i class="fa fa-eye" aria-hidden="true"></i> Latest forecasts <sup class="text-muted">Powered by <th:block th:include="fragments/promotion :: tcb"/></sup></h2>
+			<div class="club-table-scroll">
 			<table id="inProgressEventsTable" class="table table-condensed table-hover table-striped" style="margin-bottom: 0">
 				<thead>
 				<tr>
@@ -152,12 +150,14 @@
 				</tr>
 				</thead>
 			</table>
+			</div>
 			<div class="pull-right" style="margin: 5px 10px">
 				<a href="/inProgressEventsForecasts" class="label label-default" title="Full forecasts details">All Forecasts</a>
 				<a href="/eloRatings" class="label label-B" title="Current Elo ratings">Elo Ratings</a>
 			</div>
 			</th:block>
-			<h4 class="text-nowrap" style="margin-top: 25px"><i class="fa fa-calendar"></i> Latest Results</h4>
+			<h2 class="club-section-title"><i class="fa fa-calendar-o" aria-hidden="true"></i> Latest results</h2>
+			<div class="club-table-scroll">
 			<table id="latestEvents" class="table table-condensed table-hover table-striped" style="margin-bottom: 0">
 				<thead>
 				<tr>
@@ -172,12 +172,13 @@
 				</tr>
 				</thead>
 			</table>
+			</div>
 			<div class="pull-right" style="margin: 5px 10px">
 				<a href="/tournamentEvents" class="label label-default" title="Show more tournament results">More Results</a>
 				<a th:href="@{/season(season=${currentSeason})}" class="label label-B" th:title="|Show season ${currentSeason} figures|">Season [(${currentSeason})]</a>
 			</div>
 			<br/>
-			<div id="featuredCarousel" class="carousel slide" data-ride="carousel" style="height: 80px; margin-top: 15px">
+			<div id="featuredCarousel" class="carousel slide" data-ride="carousel" aria-label="Featured tennis statistics">
 				<ol class="carousel-indicators">
 					<li data-target="#featuredCarousel" data-slide-to="0" class="carousel-indicator active"></li>
 					<li data-target="#featuredCarousel" data-slide-to="1" class="carousel-indicator"></li>
@@ -215,7 +216,8 @@
 					</div>
 				</div>
 			</div>
-			<h4 class="text-nowrap" style="margin-top: 10px"><i class="fa fa-star-o"></i> Latest New Features<sup class="new-feature"></sup></h4>
+			<details class="club-changelog">
+			<summary>Features &amp; updates <span>More ways to explore the game</span></summary>
 			<ul>
 				<li>Huge missing data update: More than 200 tournament events are added in seasons 1968-1972, lacking rankings are added in seasons 1976-1978 (now the dataset for the ATP Open Era is probably more than 99% complete)</li>
 				<li><a href="/mentalToughness">Mental Toughness Rating</a> - Compare players by mental toughness using special <a href="#" data-toggle="popover" data-trigger="focus" data-placement="auto" data-popover="#mentalToughnessPopover">Mental Toughness formula</a>, filtered by various filters</li>
@@ -231,15 +233,24 @@
 				<li>In-progress tournament Court Speed and Statistics Leaders - Find out the ongoing tournaments' court speeds and explore who has the most aces, the greatest serve % or the greatest service or return points won % so far (note: this feature is temporarily suspended due to data update issues)</li>
 				<li>New website logo - <img src="/images/uts-logo.png" width="50" height="15"/> Courtesy of and designed by <a href="mailto:crazysesirdzija@gmail.com" target="_blank" rel="noopener noreferrer">crazysesirdzija@gmail.com</a></li>
 			</ul>
+			</details>
 			<th:block th:include="fragments/ads :: responsive"/>
 		</div>
-		<div class="col-lg-2 col-md-3">
-			<div class="panel panel-default component text-center text-nowrap">
+		<div class="col-lg-3 col-md-4">
+			<section class="club-explore" aria-labelledby="club-explore-title">
+				<p class="club-eyebrow">The reference desk</p>
+				<h2 id="club-explore-title">Follow your<br/><em>curiosity.</em></h2>
+				<a href="/headToHead">Head-to-head <i class="fa fa-long-arrow-right" aria-hidden="true"></i></a>
+				<a href="/eloRatings">Elo ratings <i class="fa fa-long-arrow-right" aria-hidden="true"></i></a>
+				<a href="/inProgressEventsForecasts">Tournament forecasts <i class="fa fa-long-arrow-right" aria-hidden="true"></i></a>
+				<a href="/records">The record book <i class="fa fa-long-arrow-right" aria-hidden="true"></i></a>
+			</section>
+			<div class="panel panel-default component text-center text-nowrap club-score-link">
 				<i class="fa fa-calendar-check-o"></i> <a href="https://www.flashscore.co.uk/tennis" title="Live Tennis Results by FlashScore.co.uk" target="_blank" rel="noopener noreferrer" class="external">Tennis Results</a><br/>
 				by FlashScore
 			</div>
 			<div id="rankingTopN"></div>
-			<div class="panel panel-default component text-center text-nowrap">
+			<div class="panel panel-default component text-center text-nowrap club-score-link">
 				<img src="/images/active.png" style="vertical-align: -5%" width="12" height="12"/> <a href="/liveScores" title="Live scores"><strong>Live Scores</strong></a><br/>
 				via <a href="https://www.enetscores.com" title="Enetscores by Enetpulse" target="_blank" rel="noopener noreferrer" class="external">Enetscores</a>
 			</div>

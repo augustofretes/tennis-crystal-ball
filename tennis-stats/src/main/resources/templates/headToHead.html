@@ -127,25 +127,20 @@
 			</div>
 		</div>
 	</div>
-	<div th:if="${anyPlayerSelected}" class="row">
-		<div class="col-xs-5 text-left">
-			<h3 th:if="${player1}">
-				<img th:src="@{/images/flags/{code}.png(code=${player1.country.code})}" src="/images/flags/ch.png" style="margin-top: -3px" th:title="${player1.country.id}" title="SUI" width="24" height="20"/>
-				<a th:href="@{/playerProfile(playerId=${player1.id})}" th:text="${player1.name}">Roger Federer</a>
-			</h3>
-		</div>
-		<div class="col-xs-2 text-center text-nowrap">
-			<h3>
-				<a th:if="${bothPlayersSelected && !samePlayersSelected}" href="javascript:swapPlayers()" title="Swap players"><h4 style="margin: 0" class="glyphicon glyphicon-transfer"></h4></a>
-				vs
-				<a th:if="${bothPlayersSelected && !samePlayersSelected}" th:href="@{/headToHead(name1=${player1.name}, name2=${player2.name})}" th:title="|Permalink to ${player1.name} vs ${player2.name} Rivalry|"><h4 style="margin: 0" class="glyphicon glyphicon-link"></h4></a>
-			</h3>
-		</div>
-		<div class="col-xs-5 text-right">
-			<h3 th:if="${player2}">
-				<img th:src="@{/images/flags/{code}.png(code=${player2.country.code})}" src="/images/flags/es.png'" style="margin-top: -3px" th:title="${player2.country.id}" title="ESP" width="24" height="20"/>
-				<a th:href="@{/playerProfile(playerId=${player2.id})}" th:text="${player2.name}">Rafael Nadal</a>
-			</h3>
+	<div th:if="${anyPlayerSelected}" class="club-rivalry-heading">
+		<p class="club-eyebrow">Head-to-head</p>
+		<div class="club-rivalry-title">
+			<h1>
+				<a th:if="${player1}" th:href="@{/playerProfile(playerId=${player1.id})}"><img th:src="@{/images/flags/{code}.png(code=${player1.country.code})}" th:title="${player1.country.id}" width="24" height="20" alt=""/><span th:text="${player1.name}">Roger Federer</span></a>
+				<span th:unless="${player1}" class="text-muted">Select a player</span>
+				<span class="club-vs">vs</span>
+				<a th:if="${player2}" th:href="@{/playerProfile(playerId=${player2.id})}"><img th:src="@{/images/flags/{code}.png(code=${player2.country.code})}" th:title="${player2.country.id}" width="24" height="20" alt=""/><span th:text="${player2.name}">Rafael Nadal</span></a>
+				<span th:unless="${player2}" class="text-muted">Select a player</span>
+			</h1>
+			<div th:if="${bothPlayersSelected && !samePlayersSelected}" class="club-rivalry-actions">
+				<a href="javascript:swapPlayers()" title="Swap players"><span class="glyphicon glyphicon-transfer" aria-hidden="true"></span><span class="sr-only">Swap players</span></a>
+				<a th:href="@{/headToHead(name1=${player1.name}, name2=${player2.name})}" th:title="|Permalink to ${player1.name} vs ${player2.name} Rivalry|"><span class="glyphicon glyphicon-link" aria-hidden="true"></span><span class="sr-only">Rivalry permalink</span></a>
+			</div>
 		</div>
 	</div>
 	<br th:if="${neitherPlayerSelected}"/>
