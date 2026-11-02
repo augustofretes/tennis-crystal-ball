@@ -7,10 +7,10 @@ from the repository root with the Java 11 multi-stage `Dockerfile`.
 Project: [tennis-crystal-ball](https://railway.com/project/07f2bfde-2f96-4885-965c-da6127f6a12c)
 Environment: `production`.
 
-| Service | Source / config | Purpose |
+| Service | Source | Purpose |
 | --- | --- | --- |
-| `tennis-stats` | `master`, `/railway.toml` | Public web application; health check `/actuator/health` |
-| `tennis-weekly-sync` | `master`, `/railway.sync.toml` | Weekly job, Monday 11:00 UTC (06:00 Cancun); restart NEVER, no HTTP health check |
+| `tennis-stats` | `master`, root `Dockerfile` | Public web application; health check `/actuator/health` |
+| `tennis-weekly-sync` | `master`, root `Dockerfile` | Weekly job, Monday 11:00 UTC (06:00 Cancun); restart NEVER, no HTTP health check |
 | `tennis-db` | Pinned `mcekovic/uts-database` image | PostgreSQL with persistent `tennis-data` volume |
 | `tennis-maintenance` | `postgres:14` | Maintenance runner with persistent `tennis-import-backups` at `/backups` |
 | `atp-access-diagnostic` | Railway Function | Existing diagnostic utility |
@@ -22,10 +22,26 @@ lifecycle separate from application releases.
 
 ## Configuration
 
-Set the **Railway Config File** separately on each repo-backed service, exactly
-as listed above. The worker config intentionally has no web health check.
-Service-specific config files keep the shared Docker image usable for both roles.
-The Dockerfile builds the web libraries, data-load distribution and scripts.
+Build and runtime settings are managed on each Railway service. There is no
+repository-level `railway.toml` or `railway.json`: Railway rejects new Config as
+Code paths because that mechanism is deprecated, and a shared web config would
+also give the worker the wrong health check. The Dockerfile builds the web
+libraries, data-load distribution and scripts; Railway detects it at the repo root.
+
+| Setting | `tennis-stats` | `tennis-weekly-sync` |
+| --- | --- | --- |
+| GitHub branch | `master` | `master` |
+| Dockerfile path | `Dockerfile` | `Dockerfile` |
+| Start command | `java -XX:MaxRAMPercentage=70 -cp '/app/lib/*' org.strangeforest.tcb.stats.TennisStatsApplication` | `java -Xmx768m -cp '/app/data-load/lib/*' groovy.ui.GroovyMain /app/scripts/sync-recent-results.groovy --sync` |
+| Health check | `/actuator/health`, 300 seconds | None |
+| Restart policy | ON_FAILURE, 3 retries | NEVER |
+| Cron | None | `0 11 * * 1` |
+
+Changing service settings is a separate Railway operation; a Git push deploys
+code using the existing settings. Review the table when changing those settings.
+A future IaC migration must first import and plan the full environment, preserving
+all database, backup and diagnostic resources; do not apply a partial resource
+list as a whole-project specification.
 
 Use Railway reference variables for `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`
 and `PGPASSWORD`, referencing the intended database role on `tennis-db`. Web
