@@ -194,7 +194,6 @@ public class RankingsService {
 		self = this;
 	}
 
-	@Cacheable("RankingsTable.Date")
 	public LocalDate getRankingsDate(RankType rankType, Integer season, LocalDate date) {
 		if (date == null) {
 			if (season != null)
@@ -205,7 +204,6 @@ public class RankingsService {
 		return date;
 	}
 
-	@Cacheable("RankingsTable.CurrentDate")
 	public LocalDate getCurrentRankingDate(RankType rankType) {
 		var sql = format(CURRENT_RANKING_DATE_QUERY, rankingTable(rankType));
 		return jdbcTemplate.getJdbcOperations().queryForObject(sql, LocalDate.class);
@@ -216,7 +214,6 @@ public class RankingsService {
 		return jdbcTemplate.queryForObject(sql, params("season", season), LocalDate.class);
 	}
 
-	@Cacheable("RankingsTable.SeasonDates")
 	public List<LocalDate> getSeasonRankingDates(RankType rankType, int season) {
 		var sql = format(RANKING_SEASON_DATES_QUERY, rankingTable(rankType));
 		return jdbcTemplate.queryForList(sql, params("season", season), LocalDate.class);

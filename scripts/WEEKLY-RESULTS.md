@@ -2,8 +2,10 @@
 
 `sync-recent-results.groovy` reconciles ESPN's ATP singles scoreboard with Tennis
 Abstract's full player histories. The latter provides raw serve counts, player
-identifiers, tournament IDs and match format. Rankings are not imported: the
-weekly ranking page is only used as a directory of player-profile URLs.
+identifiers, tournament IDs and match format. The match collector uses the
+weekly ranking page only as a directory of player-profile URLs. The `--sync`
+entry point now also runs the separate [rankings sync](RANKINGS.md), controlled
+by `RANKINGS_APPLY`; it does not inherit `SYNC_APPLY`.
 
 The worker reads PGHOST, PGPORT, PGDATABASE, PGUSER and PGPASSWORD from Railway
 reference variables. The dedicated Railway worker deploys from `master` using

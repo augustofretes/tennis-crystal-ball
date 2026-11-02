@@ -53,7 +53,9 @@ volumes must persist. Both application services currently have a 1 GB memory lim
 deploying code must not turn imports on. Preserve the current bounds/seed overrides
 unless performing a separately reviewed ingestion operation. See
 [scripts/WEEKLY-RESULTS.md](scripts/WEEKLY-RESULTS.md) for the import and repair runbooks.
-Schema migrations, imports and repairs are explicit maintenance operations.
+Rankings have a separate `RANKINGS_APPLY=false` default and validation preview;
+see [scripts/RANKINGS.md](scripts/RANKINGS.md). Enabling ranking imports must not
+change `SYNC_APPLY`. Schema migrations, imports and repairs are explicit maintenance operations.
 
 ## Release and verify
 
