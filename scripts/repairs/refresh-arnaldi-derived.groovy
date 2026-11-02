@@ -9,9 +9,10 @@ try {
     if(!sql.firstRow('SELECT pg_try_advisory_lock(7262601) AS acquired').acquired)throw new IllegalStateException('Another results sync is running')
     def repair=sql.firstRow("SELECT derived_completed FROM identity_repair_run WHERE repair_id='arnaldi-20261102'")
     if(!repair)throw new IllegalStateException('Identity repair has not been applied')
-    if(repair.derived_completed) {println 'IDENTITY_DERIVED_ALREADY_COMPLETE';return}
+    if(repair.derived_completed && env.IDENTITY_FORCE_DERIVED!='true') {println 'IDENTITY_DERIVED_ALREADY_COMPLETE';return}
     assert sql.firstRow('SELECT count(*) AS n FROM match WHERE winner_id=52898 OR loser_id=52898').n==0
     assert sql.firstRow('SELECT count(*) AS n FROM match WHERE winner_id=54581 OR loser_id=54581').n==165
+    sql.execute("UPDATE identity_repair_run SET derived_completed=false WHERE repair_id='arnaldi-20261102'")
     System.setProperty('tcb.db.url',url)
     System.setProperty('tcb.db.username',env.PGUSER)
     System.setProperty('tcb.db.password',env.PGPASSWORD)
@@ -21,6 +22,10 @@ try {
     def ds=org.strangeforest.tcb.dataload.SqlPool.connectionPoolDataSource(3)
     try {new org.strangeforest.tcb.stats.model.elo.EloRatingsManager(ds).compute(true,false,LocalDate.parse('2022-05-09'),2)}
     finally {ds.close()}
+    def saved=sql.firstRow('SELECT count(*) AS n,max(rank_date) AS latest FROM player_elo_ranking WHERE player_id=54581')
+    assert saved.n>0 && saved.latest==sql.firstRow('SELECT max(rank_date) AS latest FROM player_elo_ranking').latest
+    assert sql.firstRow('SELECT count(*) AS n FROM player_elo_ranking WHERE player_id=52898').n==0
+    println 'IDENTITY_ELO_SAVE_VERIFIED '+saved
     def loader=new org.strangeforest.tcb.dataload.ATPTennisLoader()
     def pool=new org.strangeforest.tcb.dataload.SqlPool(1)
     try {

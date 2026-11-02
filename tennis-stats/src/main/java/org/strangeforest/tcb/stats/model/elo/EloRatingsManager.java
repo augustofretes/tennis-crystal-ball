@@ -39,6 +39,7 @@ public class EloRatingsManager {
 	private Map<String, PredictionResult> predictionResults;
 	private LocalDate saveFromDate;
 	private ExecutorService saveExecutor;
+	private Queue<RuntimeException> saveFailures;
 	private BlockingQueue<MatchEloRating> matchRatingsForSave;
 	private ProgressTicker matchTicker, saveTicker;
 
@@ -130,11 +131,11 @@ public class EloRatingsManager {
 		}
 
 		if (save) {
-			if (fullSave)
-				dates = new ConcurrentSkipListSet<>(fetchRankingDates());
-			else
-				this.saveFromDate = saveFromDate != null ? saveFromDate : fetchLastDate().plusDays(1);
+			this.saveFromDate = fullSave ? null : saveFromDate != null ? saveFromDate : fetchLastDate().plusDays(1);
+			// An explicit start date rebuilds existing snapshots as well as appending new ones.
+			dates = fullSave || saveFromDate != null ? new ConcurrentSkipListSet<>(fetchRankingDates()) : null;
 			saveExecutor = new ThreadPoolExecutor(saveThreads, saveThreads, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(SAVE_EXECUTOR_QUEUE_CAPACITY), new CallerRunsPolicy());
+			saveFailures = new ConcurrentLinkedQueue<>();
 			matchRatingsForSave = new LinkedBlockingDeque<>(MATCH_RATINGS_FOR_SAVE_QUEUE_CAPACITY);
 			System.out.printf("Processing matches using %1$d saving threads\n", saveThreads);
 		}
@@ -178,6 +179,8 @@ public class EloRatingsManager {
 			}
 		}
 		System.out.println();
+		if (save && !saveFailures.isEmpty())
+			throw new IllegalStateException("Failed to save Elo ratings", saveFailures.peek());
 
 		if (save && fullSave && !dates.isEmpty()) {
 			System.out.printf("Deleting remaining dates: %1$d\n", dates.size());
@@ -465,10 +468,17 @@ public class EloRatingsManager {
 					}));
 			}
 			var ratingsForSave = playerRatingsForSave.values().stream().filter(EloRatingValue::isForSave).collect(toList());
-			saveExecutor.execute(() -> txTemplate.execute(s -> {
-				saveRatings(ratingsForSave, date);
-				return null;
-			}));
+			saveExecutor.execute(() -> {
+				try {
+					txTemplate.execute(s -> {
+						saveRatings(ratingsForSave, date);
+						return null;
+					});
+				}
+				catch (RuntimeException ex) {
+					saveFailures.add(ex);
+				}
+			});
 		}
 	}
 
