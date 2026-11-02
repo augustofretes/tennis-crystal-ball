@@ -1,0 +1,10 @@
+# Production scheduled worker. Railway service: tennis-weekly-sync; branch: master.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "java -Xmx768m -cp '/app/data-load/lib/*' groovy.ui.GroovyMain /app/scripts/sync-recent-results.groovy --sync"
+cronSchedule = "0 11 * * 1"
+restartPolicyType = "NEVER"
+# A scheduled worker has no HTTP health check or public domain.

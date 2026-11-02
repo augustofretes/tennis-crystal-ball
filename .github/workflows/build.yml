@@ -1,17 +1,32 @@
 name: build
 
-on: [push]
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v1
-    - name: Set up JDK 11
-      uses: actions/setup-java@v1
-      with:
-        java-version: 11
-    - name: Build with Gradle
-      run: ./gradlew build
+      - uses: actions/checkout@v5
+      - name: Set up Java 11
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Test and build production distributions
+        run: ./gradlew --no-daemon --max-workers=2 -PgradleGitPropertiesVersion=2.4.2 test :tennis-stats:distTar :data-load:installDist
+      - name: Validate result parser and identity guards
+        run: |
+          java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain scripts/sync-recent-results.groovy --test
+          java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain scripts/test-result-identities.groovy

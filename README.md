@@ -1,7 +1,6 @@
 # Ultimate Tennis Statistics and Tennis Crystal Ball
 
-[![Build Status](https://travis-ci.org/mcekovic/tennis-crystal-ball.svg?branch=master)](https://travis-ci.org/mcekovic/tennis-crystal-ball)
-[![Build Status](https://github.com/mcekovic/tennis-crystal-ball/workflows/build/badge.svg)](https://github.com/mcekovic/tennis-crystal-ball/actions?query=workflow%3Abuild)
+[![Build Status](https://github.com/augustofretes/tennis-crystal-ball/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/augustofretes/tennis-crystal-ball/actions/workflows/build.yml)
 [![Web Site](https://img.shields.io/website/https/www.ultimatetennisstatistics.com.svg)](https://www.ultimatetennisstatistics.com)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mcekovic_tennis-crystal-ball&metric=alert_status)](https://sonarcloud.io/dashboard?id=mcekovic_tennis-crystal-ball)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg?maxAge=2592000)](http://www.apache.org/licenses/LICENSE-2.0)
@@ -10,6 +9,15 @@
 ![Logo](https://raw.githubusercontent.com/mcekovic/tennis-crystal-ball/master/tennis-stats/src/main/resources/static/images/uts-logo.png)
 **Ultimate Tennis Statistics** is a Tennis Big Data Analysis tool with a nice web GUI.
 **Tennis Crystal Ball** is a set of Match Prediction and Tournament Forecasts algorithms powered by AI and machine learning.
+
+## This production fork
+
+`master` is the production branch for the web app and weekly worker on Railway.
+Live app: https://tennis-stats-production.up.railway.app.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branches, checks and releases,
+[RAILWAY.md](RAILWAY.md) for service configuration, and
+[scripts/WEEKLY-RESULTS.md](scripts/WEEKLY-RESULTS.md) for ingestion operations.
+The feature descriptions and upstream project references below are retained for context.
 
 ## Features
 

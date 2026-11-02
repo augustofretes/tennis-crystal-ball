@@ -6,7 +6,8 @@ identifiers, tournament IDs and match format. Rankings are not imported: the
 weekly ranking page is only used as a directory of player-profile URLs.
 
 The worker reads PGHOST, PGPORT, PGDATABASE, PGUSER and PGPASSWORD from Railway
-reference variables. The dedicated Railway worker uses the repository's Dockerfile
+reference variables. The dedicated Railway worker deploys from `master` using
+`/railway.sync.toml` and the repository's Dockerfile
 with start command `java -Xmx768m -cp '/app/data-load/lib/*' groovy.ui.GroovyMain
 /app/scripts/sync-recent-results.groovy --sync` and restart policy NEVER.
 `SYNC_APPLY` defaults to false; set it to `true` after reviewing the logged
