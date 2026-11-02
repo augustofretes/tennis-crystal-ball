@@ -528,5 +528,16 @@ if(args && args[0]=='--test') {
         if(args[0]=='--apply') sync.apply(sql,data,plan)
     }finally{sql.close()}
 } else if(args && args[0]=='--sync') {
+    Exception rankingsFailure=null
+    try {
+        def rankingLoader=new GroovyClassLoader(RecentResultsSync.classLoader)
+        File rankingsScript=new File(new File(getClass().protectionDomain.codeSource.location.toURI()).parentFile,'sync-rankings.groovy')
+        rankingLoader.parseClass(rankingsScript)
+        rankingLoader.loadClass('WeeklyRankingsSync').newInstance().run()
+    } catch(Exception e) {
+        RecentResultsSync.log('RANKINGS_SYNC_FAILED',[reason:e.message])
+        rankingsFailure=e
+    }
     new RecentResultsSync().run()
+    if(rankingsFailure)throw rankingsFailure
 }
