@@ -1,0 +1,10 @@
+.git
+.gradle
+.idea
+**/build
+**/classes
+**/out
+**/*.log
+**/.env
+**/.env.*
+.railway

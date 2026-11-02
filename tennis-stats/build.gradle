@@ -11,6 +11,12 @@ plugins {
 }
 
 mainClassName = 'org.strangeforest.tcb.stats.TennisStatsApplication'
+
+// Container build contexts omit Git metadata.
+gitProperties {
+	failOnNoGitDirectory = false
+}
+
 applicationDefaultJvmArgs = [
 	'-Dspring.profiles.active=digitalocean,jobs,ssl',
 	'-Xms256m',

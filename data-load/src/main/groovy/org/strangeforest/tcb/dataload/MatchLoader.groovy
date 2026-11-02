@@ -183,7 +183,7 @@ class MatchLoader extends BaseCSVLoader {
 			default:
 				if (name.equals('Atp Cup'))
 					return 'ATP Cup'
-				else if (extTournamentId == '7696')
+				else if (extTournamentId == '7696' || level == 'H')
 					return 'Next Gen Finals'
 				else if (name.equals('Santiago') && season in 2012..2013)
 					return 'Vina del Mar'
@@ -196,6 +196,9 @@ class MatchLoader extends BaseCSVLoader {
 
 	static mapLevel(String level, String name, int season, String extTournamentId) {
 		switch (level) {
+			case 'O': return 'O'
+			case 'N': return 'H'
+			case 'T': return 'T'
 			case 'G': return 'G'
 			case 'F':
 				if (name.contains("WCT"))
@@ -257,6 +260,7 @@ class MatchLoader extends BaseCSVLoader {
 					(name.equals('Basel') && season >= 2009) ||
 					(name.equals('Beijing') && season >= 2009) ||
 					(name.equals('Brussels') && season in 1990..1992) ||
+					(name in ['Dallas', 'Doha', 'Munich'] && season >= 2025) ||
 					(name.equals('Dubai') && season >= 2001) ||
 					(name.equals('Halle') && season >= 2015) ||
 					(name.equals('Hamburg') && season >= 2009) ||
@@ -295,7 +299,8 @@ class MatchLoader extends BaseCSVLoader {
 				else if (
 					(name.equals('Dusseldorf') && extTournamentId == '615') ||
 					(name.equals('Nations Cup') && extTournamentId == '615') ||
-					(name.equalsIgnoreCase('ATP Cup') && extTournamentId == '8888')
+					(name.equalsIgnoreCase('ATP Cup') && extTournamentId == '8888') ||
+					name.equalsIgnoreCase('United Cup')
 				)
 					return 'T'
 				else
@@ -380,6 +385,8 @@ class MatchLoader extends BaseCSVLoader {
 		if (!entry)
 			return null
 		switch (entry) {
+			case 'W': return 'WC'
+			case 'L': return 'LL'
 			case 'S': return 'SE'
 			case 'Alt':
 			case 'ALT': return 'AL'

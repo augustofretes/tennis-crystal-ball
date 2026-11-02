@@ -58,6 +58,10 @@ public class Country {
 	// Codes
 
 	private static final Map<String, String> OVERRIDES = Map.ofEntries(
+		entry("GDR", "DEU"),
+		entry("BIR", "MMR"),
+		entry("LEB", "LBN"),
+		entry("?", "???"),
 		entry("AHO", "NLD"),
 		entry("ALG", "DZA"),
 		entry("ANG", "AGO"),
