@@ -6,12 +6,15 @@
 	<!--/*@thymesVar id="skipAds" type="java.lang.Boolean"*/-->
 	<meta charset="utf-8"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<meta name="theme-color" content="#173f35"/>
 	<title>Ultimate Tennis Statistics[[${title} ? ' - ' + ${title} : _]]</title>
 	<link th:href="@{/webjars/bootstrap/{version}/css/bootstrap.min.css(version=${versions['bootstrap']})}" rel="stylesheet" media="screen"/>
 	<link th:href="@{/webjars/jquery-ui-themes/{version}/smoothness/jquery-ui.css(version=${versions['jquery-ui']})}" rel="stylesheet" media="screen"/>
 	<link th:href="@{/webjars/font-awesome/{version}/css/font-awesome.min.css(version=${versions['font-awesome']})}" rel="stylesheet" media="screen"/>
 	<link th:if="${bootgrid}" th:href="@{/webjars/jquery-bootgrid/{version}/dist/jquery.bootgrid.min.css(version=${versions['bootgrid']})}" rel="stylesheet" media="screen"/>
 	<link th:href="@{/css/tennis-stats.css}" rel="stylesheet" media="screen"/>
+	<link th:href="@{/css/modern-club-fonts.css}" rel="stylesheet" media="screen"/>
+	<link th:href="@{/css/modern-club.css}" rel="stylesheet" media="screen"/>
 	<link href="/feed.atom" rel="alternate" type="application/atom+xml" title="Ultimate Tennis Statistics"/>
 	<script th:src="@{/webjars/jquery/{version}/jquery.min.js(version=${versions['jquery']})}"></script>
 	<script th:src="@{/webjars/jquery-ui/{version}/jquery-ui.min.js(version=${versions['jquery-ui']})}"></script>

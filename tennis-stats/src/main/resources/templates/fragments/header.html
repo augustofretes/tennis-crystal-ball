@@ -24,35 +24,36 @@
 			window.location.href = url;
 		}
 	</script>
-	<nav id="navbar" class="navbar navbar-default component" th:with="path=${#httpServletRequest.getServletPath()}">
+	<nav id="navbar" class="navbar navbar-default component" aria-label="Main navigation" th:with="path=${#httpServletRequest.getServletPath()}">
 		<div class="container-fluid">
-			<div class="navbar-header">
+			<div class="navbar-header club-identity">
 				<div class="navbar-brand text-nowrap pull-left">
-					<a href="/" style="font-size: larger" title="Home"><th:block th:include="fragments/promotion :: logo"/></a>
+					<a href="/" title="Ultimate Tennis Statistics home"><img src="/images/court-mark.svg" width="46" height="32" alt=""/><th:block th:include="fragments/promotion :: logo"/></a>
 				</div>
-				<div th:if="${dataUpdate}" class="navbar-text pull-left text-nowrap text-muted">
-					<small class="hidden-xs">Updated: </small><small th:text="${#temporals.format(dataUpdate, 'dd-MM-yyyy')}" title="Last data update">21-09-2015</small>
+				<div th:if="${dataUpdate}" class="navbar-text club-data-date text-nowrap">
+					<small>Data updated </small><small th:text="${#temporals.format(dataUpdate, 'dd MMM yyyy')}" title="Last data update">21 Sep 2015</small>
 				</div>
-				<div class="navbar-text pull-left text-nowrap" style="margin-top: 5px">
-					<a href="https://www.facebook.com/UltimateTennisStatistics" target="_blank" rel="noopener noreferrer" title="Ultimate Tennis Statistics on Facebook"><img src="/images/glyphicons-social-facebook.png" width="24" height="24"/></a>
-					<a href="https://twitter.com/UltmTennisStats" target="_blank" rel="noopener noreferrer" title="Ultimate Tennis Statistics on Twitter"><img src="/images/glyphicons-social-twitter.png" width="24" height="24"/></a>
-					<a href="https://github.com/mcekovic/tennis-crystal-ball" target="_blank" rel="noopener noreferrer" title="Ultimate Tennis Statistics on GitHub"><img src="/images/glyphicons-social-github.png" width="24" height="24"/></a>
-					<a href="/feed.atom" target="_blank" rel="noopener noreferrer" title="Ultimate Tennis Statistics Atom Feed"><img src="/images/glyphicons-social-rss.png" width="24" height="24"/></a>
+				<div class="navbar-text club-social text-nowrap">
+					<a href="https://www.facebook.com/UltimateTennisStatistics" target="_blank" rel="noopener noreferrer" title="Ultimate Tennis Statistics on Facebook"><i class="fa fa-facebook" aria-hidden="true"></i><span class="sr-only">Facebook</span></a>
+					<a href="https://twitter.com/UltmTennisStats" target="_blank" rel="noopener noreferrer" title="Ultimate Tennis Statistics on Twitter"><i class="fa fa-twitter" aria-hidden="true"></i><span class="sr-only">Twitter</span></a>
+					<a href="https://github.com/mcekovic/tennis-crystal-ball" target="_blank" rel="noopener noreferrer" title="Ultimate Tennis Statistics on GitHub"><i class="fa fa-github" aria-hidden="true"></i><span class="sr-only">GitHub</span></a>
+					<a href="/feed.atom" target="_blank" rel="noopener noreferrer" title="Ultimate Tennis Statistics Atom Feed"><i class="fa fa-rss" aria-hidden="true"></i><span class="sr-only">Atom feed</span></a>
 				</div>
 			</div>
-			<div class="navbar-header navbar-right">
-				<button type="button" class="navbar-toggle" style="margin: 0" data-toggle="collapse" data-target="#menuNavbar">
+			<div class="navbar-header navbar-right club-search">
+				<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#menuNavbar" aria-controls="menuNavbar" aria-expanded="false">
+					<span class="sr-only">Toggle navigation</span>
 					<span class="icon-bar"></span>
 					<span class="icon-bar"></span>
 					<span class="icon-bar"></span>
 				</button>
 				<div class="input-group">
-					<label for="player" class="input-group-addon" style="width: auto"><i class="fa fa-user"></i> Player:</label>
-					<input id="player" type="text" class="ui-widget search-field form-control" size="28" placeholder="Search Player"/>
+					<label for="player" class="input-group-addon"><i class="fa fa-search" aria-hidden="true"></i><span class="sr-only">Search for a player</span></label>
+					<input id="player" type="text" class="ui-widget search-field form-control" size="28" placeholder="Find a player…"/>
 				</div>
 			</div>
 			<div id="menuNavbar" class="collapse navbar-collapse">
-				<ul class="nav navbar-nav" style="width: 100%">
+				<ul class="nav navbar-nav">
 					<li th:class="${path == '/' ? 'active' : _}"><a href="/" title="Home"><i class="fa fa-home fa-b"></i><span class="visible-xs-inline"> Home</span></a></li>
 					<li th:class="${path == '/goatList' ? 'active' : _}"><a href="/goatList" title="Open Era GOAT List"><i class="fa fa-flag"></i> GOAT List</a></li>
 					<li th:class="${path != null && path.endsWith('Timeline') ? 'active dropdown' : 'dropdown'}">
