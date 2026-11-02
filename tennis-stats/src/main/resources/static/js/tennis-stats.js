@@ -23,15 +23,6 @@ function setCookie(name, value, days) {
 	document.cookie = cookie + "; path=/";
 }
 
-function initCookiesNotification() {
-	if (!localStorage.getItem("cookiesNotification"))
-		$("#cookiesNotification").show();
-}
-
-function agreeToUseCookies() {
-	$("#cookiesNotification").hide();
-	localStorage.setItem("cookiesNotification", "true");
-}
 
 
 // Autocomplete player

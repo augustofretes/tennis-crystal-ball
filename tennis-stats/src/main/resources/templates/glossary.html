@@ -36,9 +36,6 @@
 		});
 	</script>
 	<style type="text/css">
-		body {
-			background: url("/images/home-bg.jpg") repeat;
-		}
 		.component-header {
 			margin: 0;
 		}
@@ -50,7 +47,6 @@
 	<div class="row">
 		<div class="col-lg-10 col-md-9">
 			<h1 style="margin-top: 0; margin-bottom: 20px"><a href="/" title="Home"><img src="/images/uts-logo.png" class="uts-logo" alt="UTS"/> <th:block th:include="fragments/promotion :: logo"/></a></h1>
-			<th:block th:include="fragments/ads :: responsive"/>
 			<h4 class="text-nowrap" style="margin-top: 25px"><i class="fa fa-book"></i> Glossary</h4>
 			<ul>
 				<li><strong><i class="fa fa-flag"></i> 'GOAT' Points</strong> - The points assigned to players for various tennis achievements, like winning or going deep into tournaments, ATP and Elo rankings, Grand Slam (career and calendar year), big wins, head-to-head ratios, title, streak, performance and statistics records.</li>
@@ -110,12 +106,6 @@
 		<div class="col-lg-2 col-md-3">
 			<th:block th:include="fragments/goatTopN :: goatTopN"/>
 			<div id="rankingTopN"></div>
-			<th:block th:include="fragments/promotion :: facebook"/>
-			<th:block th:include="fragments/promotion :: twitter('')"/>
-			<br/>
-			<th:block th:include="fragments/ads :: matchedContent"/>
-			<th:block th:include="fragments/promotion :: paypal"/>
-			<th:block th:include="fragments/promotion :: license"/>
 		</div>
 	</div>
 	<th:block th:include="fragments/deviceDetector :: deviceDetectors"/>

@@ -1,15 +1,11 @@
 <footer xmlns:th="http://www.thymeleaf.org" th:fragment="copy">
-	<script type="text/javascript">
-		$(function() { initCookiesNotification(); });
-	</script>
 	<div class="club-footer-line">
 		<div class="club-footer-copy">
-			<div style="font-size: small; white-space: normal">&copy; 2015-[[${#temporals.createToday().year}]] Strange Forest Software, feedback at <a href="mailto:mcekovic@gmail.com" target="_blank" rel="noopener noreferrer">mcekovic@gmail.com</a>, issues at <a href="https://github.com/mcekovic/tennis-crystal-ball/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></div>
-			<div style="font-size: x-small; font-style: italic; white-space: normal">Powered by open-source software: Linux, PostgreSQL, Java, Spring Boot, available at <a href="https://github.com/mcekovic/tennis-crystal-ball" target="_blank" rel="noopener noreferrer">GitHub</a></div>
+			&copy; 2015-[[${#temporals.createToday().year}]] Strange Forest Software. <a href="/about#license">Credits &amp; licenses</a>.
 		</div>
-		<a href="/actuator/visitors" class="label label-info label-btn" title="People visiting this site" aria-label="People visiting this site"><i class="fa fa-globe fa-lg" aria-hidden="true"></i></a>
-	</div>
-	<div id="cookiesNotification" style="position: fixed; left: 0; bottom: 0; width:100%; z-index: 100; text-align: center; background-color: indigo; color: wheat; opacity: 0.9; padding: 10px; display: none">
-		To help personalize content, <th:block th:include="fragments/promotion :: logo"/> uses cookies. By navigating this website, you agree to use cookies. <br class="visible-xs"/><button type="button" class="btn btn-warning margin-left" onclick="agreeToUseCookies()">OK, I agree</button>
+		<div class="club-footer-links">
+			<a href="https://github.com/augustofretes/tennis-crystal-ball" target="_blank" rel="noopener noreferrer">Source code</a>
+			<a href="https://github.com/augustofretes/tennis-crystal-ball/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
+		</div>
 	</div>
 </footer>

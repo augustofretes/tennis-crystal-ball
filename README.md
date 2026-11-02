@@ -18,6 +18,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for branches, checks and releases,
 [RAILWAY.md](RAILWAY.md) for service configuration, and
 [scripts/WEEKLY-RESULTS.md](scripts/WEEKLY-RESULTS.md) for ingestion operations.
 The feature descriptions and upstream project references below are retained for context.
+This fork omits upstream advertising, tracking, social and donation widgets.
+The retired Live Scores embed redirects to tournament results.
 
 ## Features
 

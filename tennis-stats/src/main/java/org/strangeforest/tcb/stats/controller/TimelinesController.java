@@ -52,7 +52,6 @@ public class TimelinesController extends PageController {
 		modelMap.addAttribute("timeline", timeline);
 		modelMap.addAttribute("minGOATPoints", minGOATPoints);
 		modelMap.addAttribute("dominanceRatioCoefficient", (int)DominanceSeason.getDominanceRatioCoefficient(aSurface));
-		modelMap.addAttribute("skipAds", true);
 		return new ModelAndView("dominanceTimeline", modelMap);
 	}
 
