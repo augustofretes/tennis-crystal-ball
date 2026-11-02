@@ -1,0 +1,78 @@
+name: Production maintenance
+
+on:
+  workflow_run:
+    workflows: [build]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-maintenance
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify public health and populated application data
+        run: |
+          python3 - <<'PY'
+          import json, time, urllib.request
+
+          base = "https://tennis-stats-production.up.railway.app"
+          for attempt in range(6):
+              try:
+                  def get(path):
+                      with urllib.request.urlopen(base + path, timeout=30) as response:
+                          assert response.status == 200
+                          return response.read().decode()
+                  assert json.loads(get("/actuator/health"))["status"] == "UP"
+                  assert "<html" in get("/").lower()
+                  players = json.loads(get("/autocompletePlayer?term=Federer"))
+                  assert players and "Federer" in json.dumps(players)
+                  print("Public health, home page and player data checks passed.")
+                  break
+              except Exception:
+                  if attempt == 5:
+                      raise
+                  time.sleep(10)
+          PY
+
+  prune:
+    needs: smoke
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: master
+          fetch-depth: 0
+      - name: Remove fully merged development branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+          production_sha=$(git rev-parse refs/remotes/origin/master)
+          while IFS= read -r branch; do
+            case "$branch" in
+              work|weekly-results-sync|feat/*|fix/*|chore/*) ;;
+              *) continue ;;
+            esac
+            branch_sha=$(git rev-parse "refs/remotes/origin/$branch")
+            if git merge-base --is-ancestor "$branch_sha" "$production_sha"; then
+              git push --force-with-lease="refs/heads/$branch:$branch_sha" origin ":refs/heads/$branch"
+              echo "Removed merged branch: $branch"
+            else
+              echo "Kept branch with unmerged commits: $branch"
+            fi
+          done < <(git for-each-ref --format='%(refname:strip=3)' refs/remotes/origin/)
