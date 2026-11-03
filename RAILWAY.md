@@ -56,6 +56,8 @@ unless performing a separately reviewed ingestion operation. See
 Rankings have a separate `RANKINGS_APPLY=false` default and validation preview;
 see [scripts/RANKINGS.md](scripts/RANKINGS.md). Enabling ranking imports must not
 change `SYNC_APPLY`. Schema migrations, imports and repairs are explicit maintenance operations.
+Career prize money uses separate `PRIZE_MONEY_SYNC` and `PRIZE_MONEY_APPLY`
+switches, both false by default; see [scripts/PRIZE-MONEY.md](scripts/PRIZE-MONEY.md).
 
 ## Release and verify
 

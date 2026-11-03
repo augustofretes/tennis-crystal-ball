@@ -6,6 +6,7 @@ identifiers, tournament IDs and match format. The match collector uses the
 weekly ranking page only as a directory of player-profile URLs. The `--sync`
 entry point now also runs the separate [rankings sync](RANKINGS.md), controlled
 by `RANKINGS_APPLY`; it does not inherit `SYNC_APPLY`.
+Career prize money has a separate opt-in [Wikipedia refresh](PRIZE-MONEY.md).
 
 The worker reads PGHOST, PGPORT, PGDATABASE, PGUSER and PGPASSWORD from Railway
 reference variables. The dedicated Railway worker deploys from `master` using

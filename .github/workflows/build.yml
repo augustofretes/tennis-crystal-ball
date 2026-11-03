@@ -31,3 +31,4 @@ jobs:
           java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain scripts/sync-recent-results.groovy --test
           java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain scripts/test-result-identities.groovy
           java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain scripts/test-rankings.groovy
+          java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain scripts/test-prize-money.groovy
