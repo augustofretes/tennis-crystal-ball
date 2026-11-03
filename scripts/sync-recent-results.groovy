@@ -528,6 +528,16 @@ if(args && args[0]=='--test') {
         if(args[0]=='--apply') sync.apply(sql,data,plan)
     }finally{sql.close()}
 } else if(args && args[0]=='--sync') {
+    Exception prizeMoneyFailure=null
+    try {
+        def prizeLoader=new GroovyClassLoader(RecentResultsSync.classLoader)
+        File prizeScript=new File(new File(getClass().protectionDomain.codeSource.location.toURI()).parentFile,'sync-prize-money.groovy')
+        prizeLoader.parseClass(prizeScript)
+        prizeLoader.loadClass('PrizeMoneySync').newInstance().run()
+    } catch(Exception e) {
+        RecentResultsSync.log('PRIZE_MONEY_SYNC_FAILED',[reason:e.message])
+        prizeMoneyFailure=e
+    }
     Exception rankingsFailure=null
     try {
         def rankingLoader=new GroovyClassLoader(RecentResultsSync.classLoader)
@@ -540,4 +550,5 @@ if(args && args[0]=='--test') {
     }
     new RecentResultsSync().run()
     if(rankingsFailure)throw rankingsFailure
+    if(prizeMoneyFailure)throw prizeMoneyFailure
 }
