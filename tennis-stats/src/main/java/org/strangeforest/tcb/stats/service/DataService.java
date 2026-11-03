@@ -6,6 +6,7 @@ import java.util.function.*;
 import java.util.regex.*;
 import javax.annotation.*;
 
+import io.micrometer.core.instrument.*;
 import org.postgresql.core.*;
 import org.springframework.beans.factory.annotation.*;
 import org.springframework.boot.actuate.metrics.cache.*;
@@ -46,10 +47,11 @@ public class DataService {
 	@PostConstruct
 	public void init() {
 		if (cacheMetricsRegistrar != null) {
-			cacheMetricsRegistrar.bindCacheToRegistry(new CaffeineCache("Prediction.Players", matchPredictionService.getPlayersCache()));
-			cacheMetricsRegistrar.bindCacheToRegistry(new CaffeineCache("Prediction.PlayersRankings", matchPredictionService.getPlayersRankingsCache()));
-			cacheMetricsRegistrar.bindCacheToRegistry(new CaffeineCache("Prediction.InProgressPlayersRankings", matchPredictionService.getInProgressPlayersRankingsCache()));
-			cacheMetricsRegistrar.bindCacheToRegistry(new CaffeineCache("Prediction.PlayersMatches", matchPredictionService.getPlayersMatchesCache()));
+			var managerTag = Tag.of("cacheManager", "cacheManager");
+			cacheMetricsRegistrar.bindCacheToRegistry(new CaffeineCache("Prediction.Players", matchPredictionService.getPlayersCache()), managerTag);
+			cacheMetricsRegistrar.bindCacheToRegistry(new CaffeineCache("Prediction.PlayersRankings", matchPredictionService.getPlayersRankingsCache()), managerTag);
+			cacheMetricsRegistrar.bindCacheToRegistry(new CaffeineCache("Prediction.InProgressPlayersRankings", matchPredictionService.getInProgressPlayersRankingsCache()), managerTag);
+			cacheMetricsRegistrar.bindCacheToRegistry(new CaffeineCache("Prediction.PlayersMatches", matchPredictionService.getPlayersMatchesCache()), managerTag);
 		}
 	}
 
