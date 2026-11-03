@@ -1,5 +1,6 @@
 package org.strangeforest.tcb.stats.spring;
 
+import io.micrometer.core.instrument.*;
 import org.aspectj.lang.annotation.*;
 import org.springframework.beans.factory.*;
 import org.springframework.beans.factory.annotation.*;
@@ -31,6 +32,6 @@ public class RegisterCaffeineCachesAspect implements SmartInitializingSingleton 
 	public void registerCaffeineCache(Cache cache) {
 		var registrar = metricsRegistrar;
 		if (registrar != null && cache != null)
-			registrar.bindCacheToRegistry(cache);
+			registrar.bindCacheToRegistry(cache, Tag.of("cacheManager", "cacheManager"));
 	}
 }

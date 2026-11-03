@@ -105,6 +105,7 @@ dependencies {
 		exclude group: 'org.apache.logging.log4j'
 	}
 	testImplementation ("org.mockito:mockito-junit-jupiter:$mockitoVersion")
+	testImplementation ("io.micrometer:micrometer-registry-prometheus:$micrometerVersion")
 }
 
 jar {
