@@ -28,7 +28,7 @@ class CacheMetricsStartupTest {
 		new ApplicationContextRunner()
 			.withConfiguration(AutoConfigurations.of(AopAutoConfiguration.class,
 				CacheAutoConfiguration.class, CacheMetricsAutoConfiguration.class))
-			.withUserConfiguration(Caching.class, PlayerCacheConfig.class, RegisterCaffeineCachesAspect.class)
+			.withUserConfiguration(Caching.class, PlayerCacheConfig.class, AnalyticsCacheConfig.class, RegisterCaffeineCachesAspect.class)
 			.withPropertyValues("spring.cache.type=caffeine", "spring.cache.caffeine.spec=maximumSize=1000,recordStats")
 			.run(context -> {
 				assertThat(context).hasNotFailed();
@@ -36,6 +36,8 @@ class CacheMetricsStartupTest {
 				var registry = context.getBean(MeterRegistry.class);
 				manager.getCache("Player").put(52602, "$68,050,698");
 				assertThat(registry.find("cache.size").tag("cache", "Player").gauge()).isNotNull();
+				assertThat(manager.getCache("Analytics.Era")).isNotNull();
+				assertThat(registry.find("cache.size").tag("cache", "Analytics.Era").gauge()).isNotNull();
 				assertThat(registry.find("cache.size").tag("cache", "Prediction.Players").gauge()).isNotNull();
 				manager.getCache("NewDynamicCache").put(1, "value");
 				assertThat(registry.find("cache.size").tag("cache", "NewDynamicCache").gauge()).isNotNull();

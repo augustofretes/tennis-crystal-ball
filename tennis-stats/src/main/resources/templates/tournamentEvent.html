@@ -35,6 +35,7 @@
 <body class="container">
 	<header th:include="fragments/header :: title"></header>
 	<h3>[[${tournamentEvent.name} + ' ' + ${tournamentEvent.season}]] <a th:href="@{/tournamentEvent(name=${tournamentEvent.name}, extId=${tournamentEvent.tournamentExtId}, season=${tournamentEvent.season})}" th:title="|Permalink to ${tournamentEvent.name} ${tournamentEvent.season} event|"><h4 style="margin: 0" class="glyphicon glyphicon-link"></h4></a></h3>
+	<p><a class="btn btn-default btn-sm" th:href="@{/analytics(tab='draw',eventId=${tournamentEvent.id},fromSeason=${tournamentEvent.season},toSeason=${tournamentEvent.season})}">Explore field, draw &amp; opponents</a></p>
 	<div class="row" th:with="isTeam=${tournamentEvent.level == 'D' || tournamentEvent.level == 'T'}">
 		<div class="col-md-2">
 			<table class="table table-condensed text-nowrap">

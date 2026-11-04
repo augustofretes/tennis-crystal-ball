@@ -35,6 +35,11 @@ or an explicitly approved maintenance operation. A code release does not authori
 a production import, schema change or data repair. Keep secrets, backups and source
 caches outside Git.
 
+The Analytics Lab has an opt-in PostgreSQL regression task,
+`:tennis-stats:analyticsIntegrationTest`, with local-only connection settings and
+isolated fixture schemas. CI runs it against a disposable service. See
+[ANALYTICS.md](ANALYTICS.md#validation) for setup and interpretation of the metrics.
+
 For a code rollback, revert the offending change through a new pull request to
 `master`, then verify both deployments. Railway can temporarily roll back a
 service to a known successful deployment while the revert is prepared. Code

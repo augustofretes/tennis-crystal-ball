@@ -45,6 +45,15 @@ configurations {
 	itestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
+// Explicit opt-in: these tests create and remove an isolated schema in a local disposable DB.
+task analyticsIntegrationTest(type: Test) {
+	useJUnitPlatform()
+	testClassesDirs = sourceSets.itest.output.classesDirs
+	classpath = sourceSets.itest.runtimeClasspath
+	include '**/analytics/*IT.class'
+	shouldRunAfter test
+}
+
 processResources {
 	filesMatching('application.properties') {
 		filter ReplaceTokens, tokens: [

@@ -53,6 +53,25 @@ The retired Live Scores embed redirects to tournament results.
 ### Web Site
 https://www.ultimatetennisstatistics.com
 
+### Analytics Lab
+
+Open `/analytics` (also available from the Analytics navigation menu) for:
+
+- Interactive Era Explorer: compare contemporaneous field strength, elite players,
+  depth bands, contender density and competitive balance by surface and conditions.
+- Performance above Elo expectation, with season charts of opposition strength
+  and top-ten encounters and drilldowns to the underlying matches.
+- Era-relative serve/return, ace and hold rates with season/surface baselines.
+- Historical draw reconstruction, seeded redraws and recorded opponent routes.
+- Surface convergence, matchup residual matrices and sustained 52-week/3-/5-year peaks.
+- Common-calendar observed comparisons and a separate reference-opponent model scenario.
+- Elo calibration and retrospective replay of the current prediction model.
+
+Filters have shareable URLs; tables can be exported as CSV. Every view describes
+its method, sample requirements and data coverage. These are model-dependent
+comparisons, not an absolute measurement of strength across generations.
+See [ANALYTICS.md](ANALYTICS.md) for methods, API parameters and validation.
+
 ### Data Loaders
 - Jeff Sackmann's ATP CSV data is available from the [community archive](https://github.com/Aneeshers/tennis-sackmann-archive), in its `atp/` directory. The archive contains data through June 2026; it is a snapshot, not a live feed.
 - Database setup instructions: [#232](https://github.com/mcekovic/tennis-crystal-ball/issues/232)
