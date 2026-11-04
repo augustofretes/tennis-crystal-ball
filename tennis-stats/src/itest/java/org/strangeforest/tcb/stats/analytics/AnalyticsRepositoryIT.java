@@ -108,6 +108,50 @@ class AnalyticsRepositoryIT {
 		assertThat(rows(service.peaks(filter, 1, 3))).isEmpty();
 	}
 
+	@Test void disjointSurfaceFieldsHaveZeroOverlapRatherThanMissingObservations() {
+		surfaceFixture();
+		var comparisons = repository.query("surfaces", filter);
+		assertThat(comparisons).hasSize(1);
+		var comparison = comparisons.get(0);
+		assertThat(comparison).containsEntry("surface1", "C").containsEntry("surface2", "H");
+		assertThat(integer(comparison, "snapshots")).isEqualTo(2);
+		assertThat(number(comparison, "common_players")).isZero();
+		assertThat(number(comparison, "shared_top10")).isZero();
+		assertThat(number(comparison, "top10_overlap")).isZero();
+		assertThat(comparison.get("rank_correlation")).isNull();
+		assertThat(integer(comparison, "correlation_snapshots")).isZero();
+	}
+
+	@Test void zeroOverlapDatesHaveEqualWeightInAnnualSurfaceComparisons() {
+		surfaceFixture();
+		insertMatch(3, 11, 1, 3, 2000, 2000, null);
+		jdbc.update("UPDATE player_elo_ranking SET clay_elo_rating = NULL WHERE player_id = 1 AND rank_date = '2010-01-04'");
+		var comparison = repository.query("surfaces", filter).get(0);
+		assertThat(integer(comparison, "snapshots")).isEqualTo(2);
+		assertThat(number(comparison, "common_players")).isEqualTo(.5);
+		assertThat(number(comparison, "shared_top10")).isEqualTo(.5);
+		assertThat(number(comparison, "top10_overlap")).isCloseTo(.125, offset(1e-12));
+		assertThat(comparison.get("rank_correlation")).isNull();
+		assertThat(integer(comparison, "correlation_snapshots")).isZero();
+	}
+
+	private void surfaceFixture() {
+		jdbc.update("DELETE FROM match_stats");
+		jdbc.update("DELETE FROM match");
+		jdbc.update("DELETE FROM player_elo_ranking");
+		insertMatch(1, 10, 1, 2, 2000, 1800, null);
+		insertMatch(2, 11, 3, 4, 2000, 1800, null);
+		for (var date : List.of("2010-01-04", "2010-01-11"))
+			for (int id = 1; id <= 4; id++)
+				jdbc.update("INSERT INTO player_elo_ranking(rank_date,player_id,rank,elo_rating,hard_elo_rating,clay_elo_rating) VALUES (?::date,?,?,2100,2100,2100)", date, id, id);
+	}
+
+	@Test void matchHistoryCarriesTournamentIdentityIndependentlyOfEventIdentity() {
+		jdbc.update("UPDATE tournament_event SET tournament_id = 11 WHERE tournament_event_id = 10");
+		var match = repository.query("matches", filter).stream().filter(m -> integer(m, "match_id") == 1).findFirst().orElseThrow();
+		assertThat(match).containsEntry("tournament_id", 11).containsEntry("tournament_event_id", 10);
+	}
+
 	@Test void everyOtherSqlQueryExecutesAgainstTheActualPostgresSchema() {
 		for (var query : List.of("balance", "calendar", "surfaces", "specialists", "events", "draw", "matches"))
 			assertThatCode(() -> repository.query(query, filter, Map.of("eventId", 10))).doesNotThrowAnyException();

@@ -49,7 +49,7 @@ public class AnalyticsCalibrationService {
 				// A full-day embargo avoids snapshots/results recorded on the match date.
 				var date = ((java.sql.Date)m.get("date")).toLocalDate().minusDays(1);
 				var prediction = predictions.predictMatch(integer(m, "winner_id"), integer(m, "loser_id"), date,
-					null, integer(m, "tournament_event_id"), false, Surface.safeDecode((String)m.get("surface")),
+					integer(m, "tournament_id"), integer(m, "tournament_event_id"), false, Surface.safeDecode((String)m.get("surface")),
 					(Boolean)m.get("indoor"), TournamentLevel.decode((String)m.get("level")),
 					((Number)m.get("best_of")).shortValue(), Round.decode((String)m.get("round")));
 				if (prediction.isEmpty()) { skipped++; continue; }

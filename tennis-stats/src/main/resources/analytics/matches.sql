@@ -1,5 +1,5 @@
 /*selected*/
-SELECT m.match_id, m.tournament_event_id, m.event_name, m.season, m.date, m.surface::text, m.indoor,
+SELECT m.match_id, m.tournament_id, m.tournament_event_id, m.event_name, m.season, m.date, m.surface::text, m.indoor,
     m.level::text, m.round::text, m.best_of, m.winner_id, m.loser_id, m.winner_age, m.loser_age,
     full_name(w.first_name, w.last_name) AS winner, full_name(l.first_name, l.last_name) AS loser,
     m.winner_elo_rating AS winner_elo, m.loser_elo_rating AS loser_elo, m.score,
