@@ -76,4 +76,17 @@ class PublicApiTest {
 		mvc.perform(get("/api/v1/lab/rules").param("pServe", "NaN")).andExpect(status().isBadRequest());
 		mvc.perform(get("/api/v1/lab/rules").param("pReturn", "Infinity")).andExpect(status().isBadRequest());
 	}
+
+	@Test void simulationJsonPreservesPrecisionUntilIntegerValidation() throws Exception {
+		String players = "\"players\":[{\"id\":1,\"elo\":2000},{\"id\":2,\"elo\":2000}]";
+		for (var body : List.of("{" + players + ",\"seed\":2147483647.0000000001}", "{" + players + ",\"seed\":-1e-400}",
+			"{" + players + ",\"iterations\":1.0000000000000000001}", "{" + players + ",\"iterations\":500.00000000000001}",
+			"{\"players\":[{\"id\":1.00000000000000001,\"elo\":2000},{\"id\":2,\"elo\":2000}]}",
+			"{\"players\":[{\"seed\":1.00000000000000001,\"elo\":2000},{\"elo\":2000}]}",
+			"{" + players + ",\"seed\":9223372036854775808}", "null", "[]", "{" + players + "} {}"))
+			mvc.perform(post("/api/v1/simulations").contentType("application/json").content(body))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("invalid_request"));
+		mvc.perform(post("/api/v1/simulations").contentType("application/json").content("{" + players + ",\"seed\":2147483647,\"draw\":\"fixed\",\"iterations\":1.0}"))
+			.andExpect(status().isOk()).andExpect(jsonPath("$.seed").value(Integer.MAX_VALUE)).andExpect(jsonPath("$.iterations").value(1));
+	}
 }

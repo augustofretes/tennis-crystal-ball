@@ -2,6 +2,9 @@ package org.strangeforest.tcb.stats.controller;
 
 import java.util.*;
 
+import com.fasterxml.jackson.core.*;
+import com.fasterxml.jackson.core.type.*;
+import com.fasterxml.jackson.databind.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.util.*;
 import org.strangeforest.tcb.stats.api.*;
@@ -12,6 +15,12 @@ import org.strangeforest.tcb.stats.api.*;
 public class ResearchLabController {
 
 	private final ResearchLab lab;
+	// Preserve decimal tokens until exact integer validation; a double could round
+	// 1.0000000000000000001 to 1 before the service ever sees the value.
+	private static final ObjectReader SIMULATION_INPUT = new ObjectMapper()
+		.readerFor(new TypeReference<Map<String, Object>>() { })
+		.with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+		.with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 	public ResearchLabController(ResearchLab lab) { this.lab = lab; }
 
 	@GetMapping("/lab/rules")
@@ -25,8 +34,15 @@ public class ResearchLabController {
 	@PostMapping("/predictions/match")
 	public Map<String, Object> prediction(@RequestBody Map<String, Object> input) { return lab.prediction(input); }
 
-	@PostMapping("/simulations")
-	public Map<String, Object> tournament(@RequestBody Map<String, Object> input) { return lab.tournament(input); }
+	@PostMapping(value = "/simulations", consumes = "application/json")
+	public Map<String, Object> tournament(@RequestBody String json) {
+		try {
+			Map<String, Object> input = SIMULATION_INPUT.readValue(json);
+			if (input == null) throw new IllegalArgumentException("Supply a valid JSON object.");
+			return lab.tournament(input);
+		}
+		catch (JsonProcessingException error) { throw new IllegalArgumentException("Supply a valid JSON object."); }
+	}
 
 	@ExceptionHandler({IllegalArgumentException.class, org.springframework.http.converter.HttpMessageNotReadableException.class})
 	public org.springframework.http.ResponseEntity<?> invalid(Exception error) {

@@ -106,6 +106,8 @@ and no larger than half the next power-of-two bracket size. Seeded redraws use
 the existing seed-tier and bye-placement algorithm, 1–500 iterations, and an
 integer random seed. Fixed draws pair adjacent inputs, require a power-of-two
 field and exactly one iteration. Inputs never create database records.
+Integer fields are validated exactly from the JSON number, so fractional values
+cannot become valid IDs, seeds or iteration counts through floating-point rounding.
 
 Round probabilities represent passing each round, including a bye; the last
 entry equals the title probability. Each bracket is solved exactly with fixed

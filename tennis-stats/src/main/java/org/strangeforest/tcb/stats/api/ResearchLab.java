@@ -1,5 +1,6 @@
 package org.strangeforest.tcb.stats.api;
 
+import java.math.*;
 import java.util.*;
 
 import org.springframework.stereotype.*;
@@ -96,9 +97,15 @@ public class ResearchLab {
 	}
 
 	private static int integer(Map<String, ?> input, String key, int fallback, int min, int max) {
-		double value = number(input, key, (double)fallback, min, max);
-		if (value != Math.rint(value)) throw new IllegalArgumentException(key + " must be an integer.");
-		return (int)value;
+		Object raw = input.containsKey(key) ? input.get(key) : fallback;
+		if (raw instanceof Number) {
+			try {
+				int value = new BigDecimal(raw.toString()).intValueExact();
+				if (value >= min && value <= max) return value;
+			}
+			catch (NumberFormatException | ArithmeticException ignored) { }
+		}
+		throw new IllegalArgumentException(key + " must be an integer between " + min + " and " + max + ".");
 	}
 
 	private static void finite(String key, double value, double min, double max) {

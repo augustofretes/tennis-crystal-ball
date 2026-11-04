@@ -1,5 +1,6 @@
 package org.strangeforest.tcb.stats.api;
 
+import java.math.*;
 import java.util.*;
 
 import org.junit.jupiter.api.*;
@@ -48,6 +49,19 @@ class ResearchLabTest {
 			assertThatThrownBy(() -> lab.tournament(input)).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> lab.rules(Double.NaN, .4)).isInstanceOf(IllegalArgumentException.class);
 		assertThatThrownBy(() -> lab.rules(.95, 1)).isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test void integerInputsAreExactBeforeRangeChecking() {
+		for (var invalid : List.of(new BigDecimal("2147483647.0000000001"), new BigDecimal("-0.0000000000000000001"),
+			new BigInteger("18446744073709551616"), Long.MAX_VALUE, Double.NaN, Double.POSITIVE_INFINITY, "1"))
+			assertThatThrownBy(() -> lab.tournament(Map.of("players", players(2, 2000), "seed", invalid)))
+				.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("seed must be an integer");
+		assertThatThrownBy(() -> lab.tournament(Map.of("players", players(2, 2000), "iterations", new BigDecimal("1.0000000000000000001"))))
+			.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("iterations must be an integer");
+		var boundary = lab.tournament(Map.of("players", List.of(Map.of("id", new BigDecimal("2147483647.0"), "elo", 2000), Map.of("id", 1L, "elo", 2000)),
+			"seed", new BigInteger("2147483647"), "draw", "fixed"));
+		assertThat(boundary.get("seed")).isEqualTo(Integer.MAX_VALUE);
+		assertThat(rows(boundary).get(0).get("id")).isEqualTo(Integer.MAX_VALUE);
 	}
 
 	private static List<Map<String,Object>> players(int count, int elo) {
