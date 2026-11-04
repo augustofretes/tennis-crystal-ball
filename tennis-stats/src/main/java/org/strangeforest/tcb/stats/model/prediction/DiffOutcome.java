@@ -2,21 +2,36 @@ package org.strangeforest.tcb.stats.model.prediction;
 
 public abstract class DiffOutcome {
 
-	private int items;
-	private int itemsDiff;
+	private final int items;
+	private final int itemsDiff;
+	private final Double[][] probabilities;
 
 	protected DiffOutcome(int items, int itemsDiff) {
 		if (itemsDiff > 2)
 			throw new IllegalArgumentException();
 		this.items = items;
 		this.itemsDiff = itemsDiff;
+		// Bound each instance's storage, even for custom rules with large targets.
+		int size = Math.min(Math.max(items, 0), 32) + 1;
+		probabilities = new Double[size][size];
 	}
 
 	public double pWin() {
 		return pWin(0, 0);
 	}
 
-	public double pWin(int items1, int items2) {
+	public synchronized double pWin(int items1, int items2) {
+		if (items1 >= 0 && items1 < probabilities.length && items2 >= 0 && items2 < probabilities.length) {
+			var cached = probabilities[items1][items2];
+			if (cached != null) return cached;
+			double probability = calculate(items1, items2);
+			probabilities[items1][items2] = probability;
+			return probability;
+		}
+		return calculate(items1, items2);
+	}
+
+	private double calculate(int items1, int items2) {
 		var nextItem = items1 + items2 + 1;
 		if (items1 >= items && items1 >= items2) {
 			var diff = items1 - items2;

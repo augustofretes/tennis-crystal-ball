@@ -14,6 +14,7 @@ public class SetOutcome extends DiffOutcome {
 	private final SetRules rules;
 	private final Supplier<Double> pServeWin = Memoizer.of(this::pServeWin);
 	private final Supplier<Double> pReturnWin = Memoizer.of(this::pReturnWin);
+	private final Supplier<Double> pTieBreakWin = Memoizer.of(this::pTieBreakWin);
 
 	public SetOutcome(double pServe, double pReturn) {
 		this(pServe, pReturn, COMMON_SET);
@@ -38,6 +39,10 @@ public class SetOutcome extends DiffOutcome {
 		return getGameOutcome(pReturn).pWin();
 	}
 
+	private double pTieBreakWin() {
+		return new TieBreakOutcome(pServe, pReturn, rules.getTieBreak()).pWin();
+	}
+
 	public double getPServeWin() {
 		return pServeWin.get();
 	}
@@ -48,7 +53,7 @@ public class SetOutcome extends DiffOutcome {
 
 	@Override protected double pDeuce(double p1, double p2, int games1, int games2) {
 		if (rules.isTieBreak(games1, games2))
-			return new TieBreakOutcome(pServe, pReturn, rules.getTieBreak()).pWin();
+			return pTieBreakWin.get();
 		else
 			return super.pDeuce(p1, p2, games1, games2);
 	}

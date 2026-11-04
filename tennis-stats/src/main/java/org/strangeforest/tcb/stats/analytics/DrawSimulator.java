@@ -22,6 +22,12 @@ public final class DrawSimulator {
 	private DrawSimulator() {}
 
 	public static Map<Integer, Double> probabilities(List<Entrant> slots, double scale) {
+		var rounds = roundProbabilities(slots, scale);
+		return rounds.isEmpty() ? (slots.get(0) == null ? Collections.emptyMap() : Map.of(slots.get(0).id, 1.0)) : rounds.get(rounds.size() - 1);
+	}
+
+	/** Probability of advancing past each round, including a bye where present. */
+	public static List<Map<Integer, Double>> roundProbabilities(List<Entrant> slots, double scale) {
 		if (slots.isEmpty() || (slots.size() & (slots.size() - 1)) != 0)
 			throw new IllegalArgumentException("A knockout bracket must have a power-of-two number of slots.");
 		var entrants = new HashMap<Integer, Entrant>();
@@ -35,6 +41,7 @@ public final class DrawSimulator {
 			}
 			rounds.add(probability);
 		}
+		var progression = new ArrayList<Map<Integer, Double>>();
 		while (rounds.size() > 1) {
 			var next = new ArrayList<Map<Integer, Double>>();
 			for (int i = 0; i < rounds.size(); i += 2) {
@@ -46,8 +53,11 @@ public final class DrawSimulator {
 				next.add(result);
 			}
 			rounds = next;
+			var combined = new HashMap<Integer, Double>();
+			for (var bracket : rounds) combined.putAll(bracket);
+			progression.add(combined);
 		}
-		return rounds.get(0);
+		return progression;
 	}
 
 	private static void advance(Map<Integer, Double> side, Map<Integer, Double> opponents,

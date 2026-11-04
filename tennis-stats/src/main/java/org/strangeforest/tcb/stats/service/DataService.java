@@ -34,7 +34,7 @@ public class DataService {
 
 	private static final String DATA_UPDATE_QUERY =
 		"SELECT greatest(\n" +
-		"  (SELECT max(tournament_end(date, level, draw_size)) data_update FROM tournament_event),\n" +
+		"  (SELECT max(date) FROM match),\n" +
 		"  (SELECT max(rank_date) FROM player_ranking)\n" +
 		")";
 

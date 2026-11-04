@@ -11,6 +11,7 @@ public class MatchOutcome extends DiffOutcome {
 	private final double pReturn;
 	private final MatchRules rules;
 	private final Supplier<Double> pSetWin = Memoizer.of(this::pSetWin);
+	private final Supplier<Double> pDecidingSetWin = Memoizer.of(this::pDecidingSetWin);
 
 	public MatchOutcome(double pServe, double pReturn, MatchRules rules) {
 		super(rules.getSets(), 1);
@@ -21,13 +22,17 @@ public class MatchOutcome extends DiffOutcome {
 
 	@Override protected double pItemWin(int set) {
 		if (rules.isDecidingSet(set) && rules.hasDecidingSetSpecificRules())
-			return getSetOutcome(rules.getDecidingSet()).pWin();
+			return pDecidingSetWin.get();
 		else
 			return pSetWin.get();
 	}
 
 	private double pSetWin() {
 		return getSetOutcome().pWin();
+	}
+
+	private double pDecidingSetWin() {
+		return getSetOutcome(rules.getDecidingSet()).pWin();
 	}
 
 	public double getPSetWin() {

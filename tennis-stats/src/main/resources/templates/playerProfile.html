@@ -104,6 +104,7 @@
 		<img th:src="@{/images/flags/{code}.png(code=${player.country.code})}" src="/images/flags/ch.png" th:title="${player.country.id}" title="SUI" width="24" height="20" alt=""/>
 		<th:block th:text="${player.name}">Roger Federer</th:block> <a th:href="@{/playerProfile(name=${player.name})}" th:title="|Permalink to ${player.name} profile|"><span class="glyphicon glyphicon-link" aria-hidden="true"></span><span class="sr-only">Profile permalink</span></a>
 	</h1>
+	<p><a th:href="@{/data(resource='matches',playerId=${player.id})}">Explore &amp; download match data</a> · <a th:href="@{/data(resource='ratings',playerId=${player.id})}">Explore Elo history</a></p>
 	<p><a class="btn btn-default btn-sm" th:href="@{/analytics(tab='performance',playerId=${player.id},playerName=${player.name},fromSeason=1968)}">Performance &amp; opposition analysis</a>
 		<a class="btn btn-default btn-sm" th:href="@{/analytics(tab='stats',playerId=${player.id},playerName=${player.name},fromSeason=1968)}">Era-relative statistics</a>
 		<a class="btn btn-default btn-sm" th:href="@{/analytics(tab='calendar',playerId=${player.id},playerName=${player.name},fromSeason=1968)}">Common-calendar comparison</a></p>

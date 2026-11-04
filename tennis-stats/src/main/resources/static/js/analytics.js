@@ -9,6 +9,7 @@
 	const defaults = window.analyticsDefaults;
 	let view = "era", generation = 0, request, exported = [], detailRows = [], lastDraw;
 	let playerNames = {}, brushTarget = "a", lastFocus;
+	let apiRequests = [];
 	const esc = value => String(value == null ? "" : value).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 	const valid = value => value !== null && value !== undefined && Number.isFinite(Number(value));
 	const num = (value, digits = 1) => valid(value) ? Number(value).toLocaleString("en-US", {maximumFractionDigits: digits, minimumFractionDigits: digits}) : "—";
@@ -39,7 +40,9 @@
 	}
 
 	async function api(name, params, signal) {
-		const response = await fetch("/api/analytics/" + name + "?" + new URLSearchParams(params || scope()), {signal: signal || (request && request.signal), headers: {Accept: "application/json"}});
+		const url = "/api/analytics/" + name + "?" + new URLSearchParams(params || scope());
+		if (!apiRequests.includes(url)) apiRequests.push(url);
+		const response = await fetch(url, {signal: signal || (request && request.signal), headers: {Accept: "application/json"}});
 		if (!response.ok) {
 			let message = "Unable to load this comparison (" + response.status + ").";
 			try { const body = await response.json(); if (body.error && response.status === 400) message = body.error; } catch (ignored) { /* Keep the HTTP error. */ }
@@ -438,6 +441,7 @@
 		if (!form.reportValidity()) return;
 		if (request) request.abort(); request = new AbortController();
 		const token = ++generation;
+		apiRequests = [];
 		remember(push);
 		content.setAttribute("aria-busy", "true"); $id("analytics-status").textContent = "Calculating comparison…";
 		$id("run-analytics").disabled = true; $id("export-analytics").disabled = true;
@@ -474,6 +478,10 @@
 		const url = URL.createObjectURL(new Blob([csv], {type: "text/csv;charset=utf-8"})); const link = document.createElement("a"); link.href = url; link.download = "tennis-" + view + ".csv"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 	});
 	$id("close-analytics-details").addEventListener("click", () => $id("analytics-details").close());
+	$id("analytics-api").addEventListener("click", () => {
+		openDetails("Reproduce this comparison", "");
+		$id("analytics-details-content").innerHTML = '<p>These read-only requests reproduce the current comparison and its coverage. The analytics routes are documented separately from the versioned history API.</p>' + apiRequests.map(url => '<p><a href="' + esc(url) + '">Open JSON</a></p><pre>' + esc(new URL(url, location.origin).href) + '</pre>').join("") + '<p><a href="/data">Explore the versioned public API</a></p>';
+	});
 	$id("analytics-details").addEventListener("close", () => { if (lastFocus && lastFocus.isConnected) lastFocus.focus(); });
 	document.addEventListener("click", event => {
 		const inspectButton = event.target.closest("[data-inspect]"); if (inspectButton) showMatches(Number(inspectButton.dataset.inspect), inspectButton.dataset.season, inspectButton.dataset.surface, inspectButton.dataset.statsOnly);
