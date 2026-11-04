@@ -17,6 +17,18 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: tcb
+          POSTGRES_PASSWORD: analytics_test
+          POSTGRES_DB: tcb_analytics_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tcb -d tcb_analytics_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v5
       - name: Set up Java 11
@@ -24,8 +36,23 @@ jobs:
         with:
           distribution: temurin
           java-version: '11'
+      - name: Prepare disposable analytics database
+        env:
+          PGHOST: localhost
+          PGUSER: tcb
+          PGPASSWORD: analytics_test
+          PGDATABASE: tcb_analytics_test
+        run: |
+          psql -v ON_ERROR_STOP=1 \
+            -f crystal-ball/src/main/db/create-extensions.sql \
+            -f crystal-ball/src/main/db/create-types.sql \
+            -f crystal-ball/src/main/db/create-tables.sql \
+            -f crystal-ball/src/main/db/create-functions.sql
       - name: Test and build production distributions
-        run: ./gradlew --no-daemon --max-workers=2 -PgradleGitPropertiesVersion=2.4.2 test :tennis-stats:distTar :data-load:installDist
+        env:
+          ANALYTICS_TEST_DB_URL: jdbc:postgresql://localhost:5432/tcb_analytics_test
+          ANALYTICS_TEST_DB_PASSWORD: analytics_test
+        run: ./gradlew --no-daemon --max-workers=2 -PgradleGitPropertiesVersion=2.4.2 test :tennis-stats:analyticsIntegrationTest :tennis-stats:distTar :data-load:installDist
       - name: Validate result parser and identity guards
         run: |
           java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain scripts/sync-recent-results.groovy --test

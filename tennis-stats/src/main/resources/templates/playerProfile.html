@@ -104,6 +104,9 @@
 		<img th:src="@{/images/flags/{code}.png(code=${player.country.code})}" src="/images/flags/ch.png" th:title="${player.country.id}" title="SUI" width="24" height="20" alt=""/>
 		<th:block th:text="${player.name}">Roger Federer</th:block> <a th:href="@{/playerProfile(name=${player.name})}" th:title="|Permalink to ${player.name} profile|"><span class="glyphicon glyphicon-link" aria-hidden="true"></span><span class="sr-only">Profile permalink</span></a>
 	</h1>
+	<p><a class="btn btn-default btn-sm" th:href="@{/analytics(tab='performance',playerId=${player.id},playerName=${player.name},fromSeason=1968)}">Performance &amp; opposition analysis</a>
+		<a class="btn btn-default btn-sm" th:href="@{/analytics(tab='stats',playerId=${player.id},playerName=${player.name},fromSeason=1968)}">Era-relative statistics</a>
+		<a class="btn btn-default btn-sm" th:href="@{/analytics(tab='calendar',playerId=${player.id},playerName=${player.name},fromSeason=1968)}">Common-calendar comparison</a></p>
 	<ul id="playerPills" class="nav nav-pills tab-param">
 		<li><a id="profilePill" data-toggle="pill" href="#profile" th:data-url="'/playerProfileTab?playerId=' + ${player.id}">Profile</a></li>
 		<li><a id="seasonPill" data-toggle="pill" href="#season" th:data-url="'/playerSeason?playerId=' + ${player.id}">Season</a></li>

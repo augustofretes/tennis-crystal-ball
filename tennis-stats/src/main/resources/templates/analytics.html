@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/head :: commonHead(~{::title/text()}, false, ~{::template})">
+	<title>Analytics Lab</title>
+	<template>
+		<meta name="description" content="Explore tennis eras, field depth, surface specialization, historical draws and performance beyond expectation."/>
+		<link th:href="@{/css/analytics.css}" rel="stylesheet"/>
+		<script th:inline="javascript">window.analyticsDefaults = [[${analyticsDefaults}]];</script>
+		<script defer th:src="@{/js/analytics.js}"></script>
+	</template>
+</head>
+<body class="container analytics-page">
+	<header th:include="fragments/header :: title"></header>
+	<main>
+		<div class="analytics-heading">
+			<div><p class="analytics-eyebrow">Tennis, in perspective</p><h1>Analytics Lab</h1><p class="analytics-intro">Compare eras. Understand the opposition. Look beyond the record.</p></div>
+			<div class="analytics-actions"><button id="share-analytics" class="btn btn-default" type="button"><i class="fa fa-link" aria-hidden="true"></i> Copy comparison link</button><button id="export-analytics" class="btn btn-default" type="button">Export CSV</button></div>
+		</div>
+		<nav class="analytics-tabs" aria-label="Analytics views">
+			<a href="/analytics?tab=era" data-view="era">Era Explorer</a>
+			<a href="/analytics?tab=performance" data-view="performance">Above expectation</a>
+			<a href="/analytics?tab=stats" data-view="stats">Era-relative stats</a>
+			<a href="/analytics?tab=draw" data-view="draw">Draw Explorer</a>
+			<a href="/analytics?tab=surfaces" data-view="surfaces">Surface convergence</a>
+			<a href="/analytics?tab=matchups" data-view="matchups">Matchup matrix</a>
+			<a href="/analytics?tab=peaks" data-view="peaks">Sustained peaks</a>
+			<a href="/analytics?tab=calendar" data-view="calendar">Common calendar</a>
+			<a href="/analytics?tab=calibration" data-view="calibration">Prediction report card</a>
+		</nav>
+		<form id="analytics-filters" class="analytics-filters">
+			<div class="analytics-filter-grid">
+				<label data-hide-on="era">From season<input class="form-control" id="fromSeason" name="fromSeason" type="number" min="1968" required="required"/></label>
+				<label data-hide-on="era">Through season<input class="form-control" id="toSeason" name="toSeason" type="number" min="1968" required="required"/></label>
+				<label>Surface<select id="surface" name="surface" class="form-control"><option value="">All surfaces</option><option th:each="s : ${surfaces}" th:value="${s.code}" th:text="${s.text}"></option></select></label>
+				<label>Conditions<select id="indoor" name="indoor" class="form-control"><option value="">Indoor &amp; outdoor</option><option value="false">Outdoor</option><option value="true">Indoor</option></select></label>
+				<label>Tournament level<select id="level" name="level" class="form-control"><option value="">All main-tour levels</option><option th:each="l : ${levels}" th:value="${l.code}" th:text="${l.text}"></option><option value="D">Davis Cup</option><option value="T">Team Cups</option></select></label>
+				<label data-hide-on="era,draw,surfaces,calibration">Minimum matches<input id="minMatches" name="minMatches" class="form-control" type="number" min="1" max="200" value="10" required="required"/></label>
+				<label class="analytics-player-filter" data-hide-on="era,draw,surfaces,matchups,calibration">Player<input id="analytics-player" class="form-control" placeholder="All players · search to select" autocomplete="off"/><input id="playerId" name="playerId" type="hidden" value="0"/></label>
+			</div>
+			<fieldset class="analytics-era-controls" data-only-on="era">
+				<legend class="sr-only">Periods to compare</legend>
+				<div class="analytics-period"><span class="analytics-era-label era-a">Era A</span><label>From<input id="aFrom" name="aFrom" type="number" class="form-control" min="1968" value="1990" required="required"/></label><label>Through<input id="aTo" name="aTo" type="number" class="form-control" min="1968" value="1995" required="required"/></label></div>
+				<div class="analytics-period"><span class="analytics-era-label era-b">Era B</span><label>From<input id="bFrom" name="bFrom" type="number" class="form-control" min="1968" value="2008" required="required"/></label><label>Through<input id="bTo" name="bTo" type="number" class="form-control" min="1968" value="2013" required="required"/></label></div>
+				<label class="analytics-check"><input id="equalLength" name="equalLength" type="checkbox" checked="checked"/> Keep periods the same length</label>
+				<label>Contenders within<select id="distance" name="distance" class="form-control"><option value="100">100 Elo of leader</option><option value="200" selected="selected">200 Elo of leader</option><option value="300">300 Elo of leader</option><option value="400">400 Elo of leader</option></select></label>
+				<label>Inspect depth<select id="excludeTop" name="excludeTop" class="form-control"><option value="0">Entire field</option><option value="1">Below the top player</option><option value="3">Below the top three</option><option value="8">Below the top eight</option><option value="10">Below the top ten</option></select></label>
+				<label class="analytics-check"><input id="variation" name="variation" type="checkbox" checked="checked"/> Show year-to-year range</label>
+			</fieldset>
+			<div class="analytics-extra-controls">
+				<label data-only-on="era,calendar,draw">Elo probability scale<select id="scale" name="scale" class="form-control"><option value="300">300 · sharper differences</option><option value="400" selected="selected">400 · standard</option><option value="500">500 · closer matches</option></select></label>
+				<label data-only-on="era,calendar">Reference player Elo<input id="reference" name="reference" class="form-control" type="number" min="1200" max="2800" step="50" value="2000" required="required"/></label>
+				<label data-only-on="peaks">Sustained window<select id="windowYears" name="windowYears" class="form-control"><option value="1">52 weeks</option><option value="3">3 years</option><option value="5">5 years</option></select></label>
+				<label data-only-on="performance">Chart measure<select id="performanceMetric" name="performanceMetric" class="form-control"><option value="excess_wins">Wins above expectation</option><option value="opponent_elo">Opponent strength over time</option><option value="top10_matches">Top-ten encounters over time</option></select></label>
+				<label data-only-on="calibration">Prediction model<select id="model" name="model" class="form-control"><option value="elo">Pre-match Elo · full sample</option><option value="current">Current model · replay up to 200 matches</option></select></label>
+				<label data-only-on="draw">Redraw simulations<select id="iterations" name="iterations" class="form-control"><option value="100">100</option><option value="200" selected="selected">200</option><option value="1000">1,000</option></select></label>
+			</div>
+			<fieldset class="analytics-calendar-weights" data-only-on="calendar"><legend>Common surface mix <small>(weights are normalized to 100%)</small></legend><label>Hard<input id="hardWeight" name="hardWeight" class="form-control" type="number" min="0" max="100" value="50"/></label><label>Clay<input id="clayWeight" name="clayWeight" class="form-control" type="number" min="0" max="100" value="30"/></label><label>Grass<input id="grassWeight" name="grassWeight" class="form-control" type="number" min="0" max="100" value="20"/></label><label>Carpet<input id="carpetWeight" name="carpetWeight" class="form-control" type="number" min="0" max="100" value="0"/></label></fieldset>
+			<div data-only-on="matchups"><label for="matrix-player">Add players to the matrix</label><input id="matrix-player" class="form-control" placeholder="Search a player · or leave empty for the ten most active" autocomplete="off"/><input id="players" name="players" type="hidden" value=""/><div id="matrix-players" class="analytics-chips"></div></div>
+			<div class="analytics-filter-footer"><button id="run-analytics" class="btn btn-primary" type="submit">Explore the data <span aria-hidden="true">↗</span></button><span id="analytics-status" role="status" aria-live="polite"></span></div>
+		</form>
+		<div id="analytics-coverage"></div>
+		<div id="analytics-content" aria-live="polite" aria-busy="false"></div>
+		<div class="analytics-principle"><strong>A comparison, with context.</strong> Elo estimates relative playing strength under a model. Equipment, field composition and rating drift complicate comparisons across generations. Competitive balance and absolute strength answer different questions.</div>
+		<noscript><p class="alert alert-info">Enable JavaScript to explore these interactive comparisons. Historical statistics remain available through the navigation above.</p></noscript>
+	</main>
+	<dialog id="analytics-details" aria-labelledby="analytics-details-title"><div class="analytics-dialog-heading"><h2 id="analytics-details-title">Underlying data</h2><button class="btn btn-default" id="close-analytics-details" type="button">Close</button></div><div id="analytics-details-content"></div></dialog>
+	<footer th:include="fragments/footer :: copy"></footer>
+</body>
+</html>

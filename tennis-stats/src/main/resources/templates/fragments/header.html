@@ -50,6 +50,20 @@
 				<ul class="nav navbar-nav">
 					<li th:class="${path == '/' ? 'active' : _}"><a href="/" title="Home"><i class="fa fa-home fa-b"></i><span class="visible-xs-inline"> Home</span></a></li>
 					<li th:class="${path == '/goatList' ? 'active' : _}"><a href="/goatList" title="Open Era GOAT List"><i class="fa fa-flag"></i> GOAT List</a></li>
+					<li th:class="${path == '/analytics' || path == '/eraExplorer' ? 'active dropdown' : 'dropdown'}">
+						<a class="dropdown-toggle" data-toggle="dropdown" href="#">Analytics<span class="caret"></span></a>
+						<ul class="dropdown-menu">
+							<li><a href="/analytics?tab=era">Era Explorer</a></li>
+							<li><a href="/analytics?tab=performance">Performance above expectation</a></li>
+							<li><a href="/analytics?tab=stats">Era-relative serve &amp; return</a></li>
+							<li><a href="/analytics?tab=draw">Historical Draw Explorer</a></li>
+							<li><a href="/analytics?tab=surfaces">Surface convergence</a></li>
+							<li><a href="/analytics?tab=matchups">Matchup matrix</a></li>
+							<li><a href="/analytics?tab=peaks">Sustained peaks</a></li>
+							<li><a href="/analytics?tab=calendar">Common calendar</a></li>
+							<li><a href="/analytics?tab=calibration">Prediction report card</a></li>
+						</ul>
+					</li>
 					<li th:class="${path != null && path.endsWith('Timeline') ? 'active dropdown' : 'dropdown'}">
 						<a class="dropdown-toggle" data-toggle="dropdown" href="#">Timelines<span class="caret"></span></a>
 						<ul class="dropdown-menu">
