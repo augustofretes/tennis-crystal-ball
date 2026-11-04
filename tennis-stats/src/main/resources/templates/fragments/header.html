@@ -31,7 +31,7 @@
 					<a href="/" title="Ultimate Tennis Statistics home"><img src="/images/court-mark.svg" width="46" height="32" alt=""/><th:block th:include="fragments/promotion :: logo"/></a>
 				</div>
 				<div th:if="${dataUpdate}" class="navbar-text club-data-date text-nowrap">
-					<small>Data updated </small><small th:text="${#temporals.format(dataUpdate, 'dd MMM yyyy')}" title="Last data update">21 Sep 2015</small>
+					<small>Data through </small><a href="/data" title="Latest recorded match or ranking date. Open Data Explorer for coverage."><small th:text="${#temporals.format(dataUpdate, 'dd MMM yyyy')}">21 Sep 2015</small></a>
 				</div>
 			</div>
 			<div class="navbar-header navbar-right club-search">
@@ -50,9 +50,12 @@
 				<ul class="nav navbar-nav">
 					<li th:class="${path == '/' ? 'active' : _}"><a href="/" title="Home"><i class="fa fa-home fa-b"></i><span class="visible-xs-inline"> Home</span></a></li>
 					<li th:class="${path == '/goatList' ? 'active' : _}"><a href="/goatList" title="Open Era GOAT List"><i class="fa fa-flag"></i> GOAT List</a></li>
-					<li th:class="${path == '/analytics' || path == '/eraExplorer' ? 'active dropdown' : 'dropdown'}">
+					<li th:class="${path == '/analytics' || path == '/eraExplorer' || path == '/data' || path == '/api' || path == '/lab' ? 'active dropdown' : 'dropdown'}">
 						<a class="dropdown-toggle" data-toggle="dropdown" href="#">Analytics<span class="caret"></span></a>
 						<ul class="dropdown-menu">
+							<li><a href="/data">Data Explorer &amp; Public API</a></li>
+							<li><a href="/lab">Research Lab · rules &amp; tournaments</a></li>
+							<li class="divider" role="separator"></li>
 							<li><a href="/analytics?tab=era">Era Explorer</a></li>
 							<li><a href="/analytics?tab=performance">Performance above expectation</a></li>
 							<li><a href="/analytics?tab=stats">Era-relative serve &amp; return</a></li>

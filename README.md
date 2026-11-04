@@ -72,6 +72,28 @@ its method, sample requirements and data coverage. These are model-dependent
 comparisons, not an absolute measurement of strength across generations.
 See [ANALYTICS.md](ANALYTICS.md) for methods, API parameters and validation.
 
+### Public API and Research Lab
+
+Open `/data` for the free Data Explorer and API documentation. Search players,
+browse matches and events, inspect ATP ranking snapshots and player Elo histories,
+and download each page as JSON or CSV. Filters are shareable; generated curl and
+Python examples reproduce the current exploration. `/api/v1/openapi.json` provides
+the OpenAPI contract. No account or API key is required.
+
+Open `/lab` to compare scoring rules and run reproducible fixed/seeded knockout
+experiments using explicitly supplied ratings. The Analytics Lab's **Get this
+data** control exposes the requests behind each comparison. Player profiles link
+to their match data and rating histories.
+
+Coverage dates and optional result-ingestion checkpoints are shown separately.
+Missing statistics are not zero, and current corrected historical data is not a
+versioned historical snapshot. The header's **Data through** date describes
+recorded matches/rankings rather than an inferred tournament end.
+
+See [API.md](API.md) for the public contract, interpretation and validation, and
+[ROADMAP.md](ROADMAP.md) for deferred men's-tennis enhancements. Women's tennis is
+out of scope.
+
 ### Data Loaders
 - Jeff Sackmann's ATP CSV data is available from the [community archive](https://github.com/Aneeshers/tennis-sackmann-archive), in its `atp/` directory. The archive contains data through June 2026; it is a snapshot, not a live feed.
 - Database setup instructions: [#232](https://github.com/mcekovic/tennis-crystal-ball/issues/232)

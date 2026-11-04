@@ -1,0 +1,1708 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Tennis Crystal Ball Public API",
+    "version": "1.0.0",
+    "description": "Free men's tennis history and bounded research experiments. No API key required. API schemas are versioned; the underlying corrected data is not an immutable historical snapshot. Coverage dates do not establish completeness. CSV returns one page. Historical data attribution: Jeff Sackmann / Tennis Abstract; current results: ESPN and Tennis Abstract. See repository source notes."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/api/v1": {
+      "get": {
+        "summary": "API directory; no authentication required",
+        "responses": {
+          "200": {
+            "description": "Links to documentation and resources"
+          }
+        }
+      }
+    },
+    "/api/v1/openapi.json": {
+      "get": {
+        "summary": "This OpenAPI specification",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.0 document"
+          }
+        }
+      }
+    },
+    "/api/v1/coverage": {
+      "get": {
+        "summary": "Global data coverage and optional result-ingestion checkpoint",
+        "responses": {
+          "200": {
+            "description": "Coverage envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Coverage"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Metadata"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/players": {
+      "get": {
+        "summary": "Search players; ordered by stable player ID",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "description": "CSV exports the requested page only.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z]{3}$"
+            }
+          },
+          {
+            "name": "active",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One ordered page. Follow links.next; corrections and ingestion can change pagination between requests.",
+            "headers": {
+              "Link": {
+                "description": "Next page, when available",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "pagination",
+                    "links",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Player"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    },
+                    "links": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Metadata"
+                    }
+                  }
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or unknown/repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/matches": {
+      "get": {
+        "summary": "Match results and available aggregate serve counts; newest first",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "description": "CSV exports the requested page only.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "fromSeason",
+            "in": "query",
+            "required": false,
+            "description": "Defaults to 1968. Runtime upper bound is next calendar year.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1968
+            }
+          },
+          {
+            "name": "toSeason",
+            "in": "query",
+            "required": false,
+            "description": "Defaults to the current year. Runtime upper bound is next calendar year.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1968
+            }
+          },
+          {
+            "name": "surface",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "H",
+                "C",
+                "G",
+                "P"
+              ]
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "G",
+                "F",
+                "L",
+                "M",
+                "O",
+                "A",
+                "B",
+                "D",
+                "T"
+              ]
+            }
+          },
+          {
+            "name": "playerId",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "eventId",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "outcome",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "completed"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One ordered page. Follow links.next; corrections and ingestion can change pagination between requests.",
+            "headers": {
+              "Link": {
+                "description": "Next page, when available",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "pagination",
+                    "links",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Match"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    },
+                    "links": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Metadata"
+                    }
+                  }
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or unknown/repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "summary": "Main-tour tournament events; newest first",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "description": "CSV exports the requested page only.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "fromSeason",
+            "in": "query",
+            "required": false,
+            "description": "Defaults to 1968. Runtime upper bound is next calendar year.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1968
+            }
+          },
+          {
+            "name": "toSeason",
+            "in": "query",
+            "required": false,
+            "description": "Defaults to the current year. Runtime upper bound is next calendar year.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1968
+            }
+          },
+          {
+            "name": "surface",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "H",
+                "C",
+                "G",
+                "P"
+              ]
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "G",
+                "F",
+                "L",
+                "M",
+                "O",
+                "A",
+                "B",
+                "D",
+                "T"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One ordered page. Follow links.next; corrections and ingestion can change pagination between requests.",
+            "headers": {
+              "Link": {
+                "description": "Next page, when available",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "pagination",
+                    "links",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Event"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    },
+                    "links": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Metadata"
+                    }
+                  }
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or unknown/repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rankings": {
+      "get": {
+        "summary": "Latest recorded ATP ranking snapshot on or before date",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "description": "CSV exports the requested page only.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "description": "Defaults to today. All rows use the same available snapshot.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One ordered page. Follow links.next; corrections and ingestion can change pagination between requests.",
+            "headers": {
+              "Link": {
+                "description": "Next page, when available",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "pagination",
+                    "links",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Ranking"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    },
+                    "links": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Metadata"
+                    }
+                  }
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or unknown/repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/players/{id}/ratings": {
+      "get": {
+        "summary": "Recorded Elo snapshots for one player; newest first",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 0
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "description": "CSV exports the requested page only.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "required": false,
+            "description": "Defaults to 1968-01-01.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "required": false,
+            "description": "Defaults to today.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One ordered page. Follow links.next; corrections and ingestion can change pagination between requests.",
+            "headers": {
+              "Link": {
+                "description": "Next page, when available",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "pagination",
+                    "links",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Rating"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    },
+                    "links": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Metadata"
+                    }
+                  }
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or unknown/repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/players/{id}": {
+      "get": {
+        "summary": "Retrieve one player",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Record envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Player"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Metadata"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or unknown/repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/matches/{id}": {
+      "get": {
+        "summary": "Retrieve one match",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Record envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Match"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Metadata"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or unknown/repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{id}": {
+      "get": {
+        "summary": "Retrieve one event",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Record envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Event"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Metadata"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or unknown/repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Record not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/predictions/match": {
+      "post": {
+        "summary": "Elo baseline from supplied ratings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PredictionInput"
+              },
+              "example": {
+                "player1Elo": 2200,
+                "player2Elo": 2000,
+                "scale": 400
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Experiment result, inputs, model version and assumptions. Round probabilities count advancing through byes; final round is title probability. Seeded draws average exact probabilities across sampled brackets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Experiment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or unknown/repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/simulations": {
+      "post": {
+        "summary": "Bounded synchronous knockout experiment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationInput"
+              },
+              "example": {
+                "players": [
+                  {
+                    "name": "A",
+                    "elo": 2200
+                  },
+                  {
+                    "name": "B",
+                    "elo": 2000
+                  }
+                ],
+                "draw": "fixed",
+                "iterations": 1,
+                "seed": 1973
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Experiment result, inputs, model version and assumptions. Round probabilities count advancing through byes; final round is title probability. Seeded draws average exact probabilities across sampled brackets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Experiment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or unknown/repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/rules": {
+      "get": {
+        "summary": "Compare twelve scoring formats under stationary point probabilities",
+        "parameters": [
+          {
+            "name": "pServe",
+            "in": "query",
+            "required": false,
+            "description": "Player 1's serve point win probability.",
+            "schema": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 0.95,
+              "default": 0.65
+            }
+          },
+          {
+            "name": "pReturn",
+            "in": "query",
+            "required": false,
+            "description": "Player 1's return point win probability.",
+            "schema": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 0.95,
+              "default": 0.38
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Best-of-3/5 \u00d7 advantage/no-ad \u00d7 standard/super/advantage deciding sets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Experiment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or unknown/repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "returned": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "offset_limit_reached": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Metadata": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "enum": [
+              "1"
+            ]
+          },
+          "scope": {
+            "type": "string"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "attribution": {
+            "type": "string"
+          },
+          "coverage_cache_seconds": {
+            "type": "integer",
+            "minimum": 300,
+            "maximum": 300
+          }
+        }
+      },
+      "Coverage": {
+        "type": "object",
+        "description": "Global main-tour counts. Dates are coverage markers, not immutable dataset versions or completeness guarantees. Ingestion checkpoint is optional.",
+        "properties": {
+          "recorded_matches": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "completed_matches": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rated_matches": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "valid_serve_stat_matches": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "first_match": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "matches_through": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "rankings_through": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "elo_through": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "last_successful_ingestion_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Player": {
+        "type": "object",
+        "description": "Unknown values may be null or absent; they do not mean zero.",
+        "properties": {
+          "player_id": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "country": {
+            "type": "string",
+            "nullable": true
+          },
+          "dob": {
+            "type": "string",
+            "nullable": true,
+            "format": "date"
+          },
+          "hand": {
+            "type": "string",
+            "nullable": true
+          },
+          "backhand": {
+            "type": "string",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "active": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "Match": {
+        "type": "object",
+        "description": "Unknown values may be null or absent; they do not mean zero.",
+        "properties": {
+          "match_id": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "season": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "event_id": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "best_of": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "winner_id": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "loser_id": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "winner_rank": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "loser_rank": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "winner_elo_rating": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "loser_elo_rating": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "minutes": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "w_ace": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "l_ace": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "w_sv_pt": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "l_sv_pt": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "w_1st_in": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "l_1st_in": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "w_1st_won": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "l_1st_won": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "w_2nd_won": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "l_2nd_won": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "date": {
+            "type": "string",
+            "nullable": true,
+            "format": "date"
+          },
+          "event": {
+            "type": "string",
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "surface": {
+            "type": "string",
+            "nullable": true
+          },
+          "round": {
+            "type": "string",
+            "nullable": true
+          },
+          "winner": {
+            "type": "string",
+            "nullable": true
+          },
+          "loser": {
+            "type": "string",
+            "nullable": true
+          },
+          "score": {
+            "type": "string",
+            "nullable": true
+          },
+          "outcome": {
+            "type": "string",
+            "nullable": true
+          },
+          "indoor": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "description": "Unknown values may be null or absent; they do not mean zero.",
+        "properties": {
+          "event_id": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "tournament_id": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "season": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "date": {
+            "type": "string",
+            "nullable": true,
+            "format": "date"
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "surface": {
+            "type": "string",
+            "nullable": true
+          },
+          "indoor": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "draw_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "draw_size": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          }
+        }
+      },
+      "Ranking": {
+        "type": "object",
+        "description": "Unknown values may be null or absent; they do not mean zero.",
+        "properties": {
+          "date": {
+            "type": "string",
+            "nullable": true,
+            "format": "date"
+          },
+          "rank": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "rank_points": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "player_id": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "country": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Rating": {
+        "type": "object",
+        "description": "Unknown values may be null or absent; they do not mean zero.",
+        "properties": {
+          "player_id": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "rank": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "elo_rating": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "hard_elo_rating": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "clay_elo_rating": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "grass_elo_rating": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "carpet_elo_rating": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "indoor_elo_rating": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "outdoor_elo_rating": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64"
+          },
+          "date": {
+            "type": "string",
+            "nullable": true,
+            "format": "date"
+          }
+        }
+      },
+      "PredictionInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "player1Elo",
+          "player2Elo"
+        ],
+        "properties": {
+          "player1Elo": {
+            "type": "number",
+            "minimum": 500,
+            "maximum": 3500
+          },
+          "player2Elo": {
+            "type": "number",
+            "minimum": 500,
+            "maximum": 3500
+          },
+          "scale": {
+            "type": "number",
+            "minimum": 200,
+            "maximum": 800,
+            "default": 400
+          }
+        }
+      },
+      "SimulationPlayer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "elo"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "elo": {
+            "type": "number",
+            "minimum": 500,
+            "maximum": 3500
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          }
+        }
+      },
+      "SimulationInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "players"
+        ],
+        "properties": {
+          "players": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/SimulationPlayer"
+            }
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "default": 1973
+          },
+          "iterations": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "scale": {
+            "type": "number",
+            "minimum": 200,
+            "maximum": 800,
+            "default": 400
+          },
+          "draw": {
+            "type": "string",
+            "enum": [
+              "seeded",
+              "fixed"
+            ]
+          }
+        },
+        "description": "Defaults: seeded draw, 200 iterations (fixed draw: exactly 1). IDs and seeds must be unique. Seed maximum is half the next power-of-two bracket size. Fixed draws pair adjacent players and require a power-of-two field. Ratings and IDs are scenario inputs, not database lookups."
+      },
+      "Experiment": {
+        "type": "object",
+        "properties": {
+          "data": {},
+          "inputs": {
+            "type": "object"
+          },
+          "model_version": {
+            "type": "string"
+          },
+          "assumptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}
