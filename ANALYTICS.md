@@ -172,7 +172,9 @@ Shared parameters: `fromSeason`, `toSeason`, `surface` (`H/C/G/P` or empty),
 Additional parameters: `position` (1–200), `distance` (50–400), `scale` (200–800),
 `reference` (1200–2800), `windowYears` (1/3/5), `players` (up to 12 comma-separated
 IDs), four surface `*Weight` values (0–100), `eventId`, `iterations` (50–1000),
-and `model` (`elo/current`). Invalid requests return HTTP 400 with an error.
+`model` (`elo/current`), and `statsOnly` (`true/false`, match drilldowns only).
+Statistics drilldowns retain their row's season, surface and valid-point sample.
+Invalid requests return HTTP 400 with an error.
 
 Query values are bound parameters. Dynamic rating columns come from an allowlist.
 Matchup analysis and calibration stream history in read-only transactions. Each

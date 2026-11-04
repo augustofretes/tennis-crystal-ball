@@ -155,8 +155,8 @@ public class AnalyticsService {
 		return result;
 	}
 
-	public Map<String, Object> matchDetails(AnalyticsFilter filter, int playerId) {
-		var rows = repository.query("matches", filter, Map.of("playerId", playerId));
+	public Map<String, Object> matchDetails(AnalyticsFilter filter, int playerId, boolean statsOnly) {
+		var rows = repository.query("matches", filter, Map.of("playerId", playerId, "withStats", statsOnly));
 		for (var r : rows) {
 			if (r.get("winner_elo") == null || r.get("loser_elo") == null) continue;
 			boolean winner = integer(r, "winner_id") == playerId;
@@ -165,7 +165,7 @@ public class AnalyticsService {
 			r.put("residual", winner ? 1 - probability : -(1 - probability));
 		}
 		Collections.reverse(rows);
-		return table(rows, "Completed matches in scope. Ratings and opponent rank are recorded at the match; positive residual means the result exceeded pre-match overall Elo expectation.");
+		return table(rows, "Completed matches in scope" + (statsOnly ? " with the valid detailed point totals used by the statistics comparison" : "") + ". Ratings and opponent rank are recorded at the match; positive residual means the result exceeded pre-match overall Elo expectation.");
 	}
 
 	@Cacheable("Analytics.Matchups")

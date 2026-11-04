@@ -38,6 +38,7 @@ public class AnalyticsRepository {
 		params.put("position", 1);
 		params.put("distance", 200);
 		params.put("windowYears", 1);
+		params.put("withStats", false);
 		params.putAll(extra);
 		return jdbc.queryForList(sql, params);
 	}
@@ -49,7 +50,7 @@ public class AnalyticsRepository {
 	/** Call inside a read-only transaction so PostgreSQL streams rather than buffering history. */
 	public void scanMatches(AnalyticsFilter filter, Consumer<Map<String, Object>> consumer) {
 		var sql = queries.get("matches").replace("/*selected*/", queries.get("selected"));
-		var params = filter.params(); params.put("playerId", 0);
+		var params = filter.params(); params.put("playerId", 0); params.put("withStats", false);
 		jdbc.execute(sql, params, (PreparedStatementCallback<Void>) statement -> {
 			statement.setFetchSize(1000);
 			try (var result = statement.executeQuery()) {

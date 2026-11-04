@@ -68,7 +68,9 @@ public class AnalyticsController extends PageController {
 			}
 			case "matches": {
 				if (playerId == 0) throw new IllegalArgumentException("Choose a player to inspect matches.");
-				return analytics.matchDetails(filter, playerId);
+				var statsOnly = params.getOrDefault("statsOnly", "false");
+				if (!Set.of("true", "false").contains(statsOnly)) throw new IllegalArgumentException("statsOnly must be true or false.");
+				return analytics.matchDetails(filter, playerId, Boolean.parseBoolean(statsOnly));
 			}
 			case "events": return analytics.events(filter);
 			case "draw": return draws.draw(filter, bounded(params, "eventId", 0, 1, Integer.MAX_VALUE), bounded(params, "iterations", 200, 50, 1000), scale);

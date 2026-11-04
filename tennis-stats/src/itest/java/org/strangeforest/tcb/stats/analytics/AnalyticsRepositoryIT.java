@@ -86,6 +86,10 @@ class AnalyticsRepositoryIT {
 		assertThat(number(hard, "serve_rate")).isCloseTo(.7, offset(1e-12));
 		assertThat(number(hard, "serve_baseline")).isCloseTo(79.0 / 125, offset(1e-12));
 		assertThat(number(hard, "serve_above")).isCloseTo((42 - 60 * 79.0 / 125) / 160, offset(1e-12));
+		assertThat(rows(service.matchDetails(filter, 1, false))).hasSize(3);
+		assertThat(rows(service.matchDetails(filter, 1, true))).hasSize(2);
+		var hardFilter = new AnalyticsFilter(2010, 2010, "H", "", "", 1);
+		assertThat(rows(service.matchDetails(hardFilter, 1, true))).hasSize(1);
 	}
 
 	@Test void filtersRestrictBothStatisticsAndRankingCohorts() {

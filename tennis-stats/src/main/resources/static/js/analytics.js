@@ -18,7 +18,7 @@
 	const mean = values => { const good = values.filter(valid).map(Number); return good.length ? good.reduce((a, b) => a + b, 0) / good.length : null; };
 	const difference = value => '<span class="analytics-difference ' + (value >= 0 ? "positive" : "negative") + '">' + esc(signed(value)) + "</span>";
 	const playerLink = r => '<a href="/playerProfile?playerId=' + encodeURIComponent(r.player_id) + '">' + esc(r.name) + "</a>";
-	const inspect = r => playerLink(r) + ' <button type="button" class="analytics-data-link" data-inspect="' + Number(r.player_id) + '" data-season="' + (r.season || "") + '">Matches</button>';
+	const inspect = r => playerLink(r) + ' <button type="button" class="analytics-data-link" data-inspect="' + Number(r.player_id) + '" data-season="' + (r.season || "") + '" data-surface="' + esc(r.surface || "") + '" data-stats-only="' + (view === "stats") + '">Matches</button>';
 	const section = (title, description, body) => '<section class="analytics-section"><h2>' + esc(title) + "</h2><p>" + esc(description) + "</p>" + body + "</section>";
 	const empty = message => '<div class="analytics-empty"><h2>No comparable data in this scope</h2><p>' + esc(message || "Try a wider period, a lower minimum sample, or another surface.") + "</p></div>";
 	const method = text => '<details class="analytics-method"><summary>How this is calculated</summary><p>' + esc(text) + "</p></details>";
@@ -415,10 +415,11 @@
 		if (!$id("analytics-details").open) $id("analytics-details").showModal();
 	}
 
-	async function showMatches(playerId, season) {
+	async function showMatches(playerId, season, surface, statsOnly) {
 		openDetails("Matches behind the comparison", "Loading recorded match results…");
 		try {
-			const extra = {playerId}; if (season) { extra.fromSeason = season; extra.toSeason = season; }
+			const extra = {playerId, statsOnly}; if (season) { extra.fromSeason = season; extra.toSeason = season; }
+			if (surface) extra.surface = surface;
 			const data = await api("matches", scope(extra)); detailRows = data.rows;
 			$id("analytics-details-content").innerHTML = table(data.rows, [
 				{key: "date", title: "Date"}, {title: "Tournament", render: r => '<a href="/tournamentEvent?tournamentEventId=' + r.tournament_event_id + '">' + esc(r.event_name) + "</a>"},
@@ -475,7 +476,7 @@
 	$id("close-analytics-details").addEventListener("click", () => $id("analytics-details").close());
 	$id("analytics-details").addEventListener("close", () => { if (lastFocus && lastFocus.isConnected) lastFocus.focus(); });
 	document.addEventListener("click", event => {
-		const inspectButton = event.target.closest("[data-inspect]"); if (inspectButton) showMatches(Number(inspectButton.dataset.inspect), inspectButton.dataset.season);
+		const inspectButton = event.target.closest("[data-inspect]"); if (inspectButton) showMatches(Number(inspectButton.dataset.inspect), inspectButton.dataset.season, inspectButton.dataset.surface, inspectButton.dataset.statsOnly);
 		const routeButton = event.target.closest("[data-path]"); if (routeButton && lastDraw) {
 			const player = lastDraw.rows.find(r => r.player_id === Number(routeButton.dataset.path)); openDetails(player.name + " · recorded route", "");
 			$id("analytics-details-content").innerHTML = table(player.path, [{key: "round", title: "Round"}, {key: "opponent", title: "Opponent"}, {key: "opponent_elo", title: "Entry Elo", format: num},
