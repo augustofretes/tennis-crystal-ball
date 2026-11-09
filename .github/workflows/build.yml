@@ -59,3 +59,9 @@ jobs:
           java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain scripts/test-result-identities.groovy
           java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain scripts/test-rankings.groovy
           java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain scripts/test-prize-money.groovy
+      - name: Validate legacy player-name ambiguity guard
+        env:
+          IDENTITY_TEST_JDBC_URL: jdbc:postgresql://localhost:5432/tcb_analytics_test
+          IDENTITY_TEST_USER: tcb
+          IDENTITY_TEST_PASSWORD: analytics_test
+        run: java -cp 'data-load/build/install/data-load/lib/*' groovy.ui.GroovyMain scripts/test-player-name-resolution.groovy
