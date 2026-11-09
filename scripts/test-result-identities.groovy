@@ -22,7 +22,7 @@ class IdentityFixtureSql extends Sql {
 def loader=new GroovyClassLoader(getClass().classLoader)
 loader.parseClass(new File('scripts/sync-recent-results.groovy'))
 def Sync=loader.loadClass('RecentResultsSync')
-File cache=new File('work/identity-tests');cache.mkdirs()
+File cache=java.nio.file.Files.createTempDirectory('identity-tests-').toFile();cache.deleteOnExit()
 def sync=Sync.newInstance([SYNC_CACHE_DIR:cache.absolutePath])
 def player={int id,String name,String dob='2000-01-01',String country='ITA' ->
     [player_id:id,name:name,dob:dob,country_id:country,ext_player_id:id+100000]
@@ -105,6 +105,46 @@ sync.metaClass.get={String url->assert url.endsWith('/test');'{"displayName":"Ma
 assert sync.plan(sql,biographyData).rejects.any{it.reason=='Player identity conflict' && 'name' in it.fields}
 sql.playerRows<<arnaldi
 thursfield.dob='2000-12-30'
+
+// A unique bare-name match must not bypass ESPN biography verification.
+def father=player(2093,'Martin Damm','1972-08-01','USA')
+def son=player(66208,'Martin Damm Jr.','2003-09-30','USA')
+sql.playerRows.addAll([father,son])
+def dammData={ ->
+    Map d=data()
+    d.identities.martindamm=[name:'Martin Damm',espnId:'10130']
+    d.matches=[sourceMatch('damm',sql.tournaments[3],'QF','Martin Damm','Taylor Fritz','6-2 6-2')]
+    d
+}
+sync.metaClass.get={String url->assert url.endsWith('/10130');'{"displayName":"Martin Damm","dateOfBirth":"2003-09-30T00:00Z","flag":{"alt":"USA"}}'}
+Map damm=sync.plan(sql,dammData())
+assert !damm.rejects && !damm.newPlayers
+assert damm.inserts[0].wplayer.id==66208
+// Same spelling also resolves by DOB, regardless of row ordering.
+son.name='Martin Damm'
+assert sync.plan(sql,dammData()).inserts[0].wplayer.id==66208
+sql.playerRows=sql.playerRows.reverse()
+assert sync.plan(sql,dammData()).inserts[0].wplayer.id==66208
+// Existing misattributions remain blocking conflicts, never duplicate inserts.
+sql.matches<<[match_id:200022,tournament_id:4,season:2026,round:'QF',winner_id:2093,loser_id:26006,score:'6-2 6-2',complete_stats:true]
+assert sync.plan(sql,dammData()).rejects.any{it.reason=='Existing match identity conflict' && 200022 in it.matchIds}
+sql.matches.removeAll{it.match_id==200022}
+// A stale provider mapping is rejected, not silently rebound to the son.
+Map stale=dammData();stale.identities.martindamm.extId=father.ext_player_id
+assert sync.plan(sql,stale).rejects.any{it.reason=='Player identity conflict' && 'dob' in it.fields}
+// Conflicting upstream evidence, missing biographies and ambiguous rows fail closed.
+Map conflicting=dammData();conflicting.identities.martindamm.dob=father.dob
+assert sync.plan(sql,conflicting).rejects.any{it.reason=='Player identity conflict'}
+Map noBio=dammData();noBio.identities.martindamm.remove('espnId')
+assert sync.plan(sql,noBio).rejects.any{it.reason=='Ambiguous player identity'}
+def duplicate=player(66209,'Martin Damm','2003-09-30','USA');sql.playerRows<<duplicate
+assert sync.plan(sql,dammData()).rejects.any{it.reason=='Ambiguous player identity'}
+sql.playerRows.remove(duplicate)
+sync.metaClass.get={String url->throw new IOException('temporary failure')}
+assert sync.plan(sql,dammData()).rejects.any{it.reason=='Player biography unavailable'}
+sync.metaClass.get={String url->'{"displayName":"Martin Damm"}'}
+assert sync.plan(sql,dammData()).rejects.any{it.reason=='Player biography incomplete'}
+sql.playerRows.removeAll([father,son])
 
 // The bracket guard still rejects excess unrelated inserts.
 Map tooMany=data()

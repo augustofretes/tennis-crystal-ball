@@ -251,6 +251,15 @@ class RecentResultsSync {
                 if(!identities[norm(n)].espnId)identities[norm(n)].espnId=c.id
             }
         }
+        esMatches.each { e -> e.raw.competitors.each { c ->
+            String key=norm(c.athlete.displayName)
+            if(identities[key]) {
+                Map p=identities[key]
+                if(p.espnId && p.espnId.toString()!=c.id.toString())
+                    conflicts<<[reason:'Multiple ESPN athletes share normalized name',name:p.name,ids:[p.espnId,c.id]]
+                else p.espnId=c.id
+            }
+        }}
         List matchedEspn=matches.values().collectMany{it.espnIds?:[]}.unique()
         List missing=esMatches.findAll{ !(it.id in matchedEspn) && it.date>=from }.unique{it.id}
         Map result=[from:from,through:through,collectedAt:java.time.Instant.now().toString(),profiles:profiles.size(),failedProfiles:failures,identities:identities,matches:matches.values().toList(),conflicts:conflicts,espnMissing:missing,espnTournaments:espn.events.collect{[id:it.id,name:it.name]}]
@@ -262,9 +271,18 @@ class RecentResultsSync {
         Sql sql=Sql.newInstance('jdbc:postgresql://'+env.PGHOST+':'+(env.PGPORT?:'5432')+'/'+env.PGDATABASE+'?currentSchema=tcb,public',env.PGUSER,env.PGPASSWORD,'org.postgresql.Driver')
         sql.execute('SET search_path=tcb,public'); sql
     }
+    // Suffix differences are evidence only when the birth dates agree; never
+    // normalize father and son into one global name/alias.
+    static boolean sameIdentityName(Map source,Map stored,Map byName) {
+        norm(source.name)==norm(stored.name) ||
+            (byName[norm(source.name)]?:[]).any{it.id==stored.id} ||
+            (source.dob && source.dob==stored.dob &&
+             norm(source.name?.replaceFirst(/(?i)\s+(jr\.?|sr\.?)$/, ''))==
+             norm(stored.name?.replaceFirst(/(?i)\s+(jr\.?|sr\.?)$/, '')))
+    }
     static List identityConflicts(Map source,Map stored,Map byName) {
         List fields=[]
-        if(norm(source.name)!=norm(stored.name) && !(byName[norm(source.name)]?:[]).any{it.id==stored.id})fields<<'name'
+        if(!sameIdentityName(source,stored,byName))fields<<'name'
         if(source.dob && stored.dob && source.dob!=stored.dob)fields<<'dob'
         if(source.country && stored.country && source.country!=stored.country)fields<<'country'
         fields
@@ -298,30 +316,53 @@ class RecentResultsSync {
         }
         Map resolved=[:], unknown=[:]
         data.identities.each { k,p ->
-            def known=p.extId?byExt[p.extId]:null
-            if(!known) {
-                List choices=byName[norm(p.name)]?:[]
-                if(p.dob) {def same=choices.findAll{it.dob==p.dob};if(same.size()==1)known=same[0]}
-                if(!known && choices.size()==1 && (!p.dob || !choices[0].dob || choices[0].dob==p.dob))known=choices[0]
-            }
-            if(!known && !p.extId && p.espnId) {
-                Map bio=new JsonSlurper().parseText(get('https://sports.core.api.espn.com/v2/sports/tennis/athletes/'+p.espnId)) as Map
-                if(bio.displayName && norm(bio.displayName)!=norm(p.name) &&
-                    !(byName[norm(p.name)]?:[]).any{a->(byName[norm(bio.displayName)]?:[]).any{b->a.id==b.id}}) {
-                    rejects<<[reason:'Player identity conflict',source:[name:p.name,espnId:p.espnId],stored:[name:bio.displayName],fields:['name']]
+            // Validate source biographies BEFORE considering even a unique name
+            // or a stored mapping. A namesake may already own that name/mapping.
+            if(p.espnId) {
+                Map bio
+                try { bio=new JsonSlurper().parseText(get('https://sports.core.api.espn.com/v2/sports/tennis/athletes/'+p.espnId)) as Map }
+                catch(Exception ex) {
+                    rejects<<[reason:'Player biography unavailable',source:[name:p.name,espnId:p.espnId]]
                     return
                 }
-                String country=countryCode(bio.flag as Map)
-                if(bio.dateOfBirth && country) {
-                    p.dob=bio.dateOfBirth.take(10);p.country=country
-                    List same=players.values().findAll{it.dob==p.dob && it.country==p.country}
-                    if(same.size()==1)known=same[0]
-                    else {
-                        List sourceIdentities=data.identities.values().findAll{it.extId && it.dob==p.dob && it.country==p.country}
-                        if(sourceIdentities.size()==1 && byExt[sourceIdentities[0].extId])known=byExt[sourceIdentities[0].extId]
-                        else {p.extId=-(p.espnId as int);p.name=bio.displayName}
+                Map evidence=[name:bio.displayName,dob:bio.dateOfBirth?.take(10),country:countryCode(bio.flag as Map)]
+                if(!evidence.name || !evidence.dob || !evidence.country) {
+                    rejects<<[reason:'Player biography incomplete',source:[name:p.name,espnId:p.espnId]]
+                    return
+                }
+                List fields=identityConflicts(p,evidence,[:])
+                if('name' in fields && (byName[norm(p.name)]?:[]).any{a->
+                    (byName[norm(evidence.name)]?:[]).any{b->a.id==b.id}
+                })fields.remove('name')
+                if(fields) {
+                    rejects<<[reason:'Player identity conflict',source:p,stored:evidence,fields:fields]
+                    return
+                }
+                p.dob=evidence.dob;p.country=evidence.country
+            }
+            def known=p.extId?byExt[p.extId]:null
+            if(!known) {
+                List choices=(byName[norm(p.name)]?:[]).collect()
+                if(p.dob) players.values().findAll{it.dob==p.dob && sameIdentityName(p,it,byName)}.each { candidate ->
+                    if(!choices.any{it.id==candidate.id})choices<<candidate
+                }
+                List compatible=choices.findAll{!identityConflicts(p,it,byName)}
+                List exact=p.dob?compatible.findAll{it.dob==p.dob}:[]
+                if(exact.size()==1)known=exact[0]
+                else if(p.dob && compatible.size()==1 && choices.size()==1)known=compatible[0]
+                else if(choices) {
+                    rejects<<[reason:'Ambiguous player identity',source:p,candidates:choices]
+                    return
+                }
+                if(!known && p.dob && p.country) {
+                    List sameBio=players.values().findAll{it.dob==p.dob && it.country==p.country}
+                    if(sameBio) {
+                        rejects<<[reason:'Player identity conflict',source:p,stored:sameBio[0],fields:['name']]
+                        return
                     }
                 }
+                // Never create another row to evade ambiguous existing candidates.
+                if(!known && !p.extId && p.espnId)p.extId=-(p.espnId as int)
             }
             if(known) {
                 List fields=identityConflicts(p,known,byName)

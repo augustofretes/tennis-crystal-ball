@@ -21,20 +21,17 @@ CREATE OR REPLACE FUNCTION find_player(
 ) RETURNS INTEGER AS $$
 DECLARE
 	l_player_id INTEGER;
+	l_candidates INTEGER;
 	l_name TEXT;
 BEGIN
-	SELECT player_id INTO l_player_id FROM player
-	WHERE full_name(first_name, last_name) = p_name
-	AND (p_date >= dob + (INTERVAL '10 year') OR dob IS NULL OR p_date IS NULL)
-	ORDER BY dob, player_id;
-	IF l_player_id IS NOT NULL THEN
-		RETURN l_player_id;
-	END IF;
-
-	SELECT player_id INTO l_player_id FROM player
+	-- A name and minimum playing age cannot distinguish active namesakes.
+	-- Never select the oldest row merely because its birth date sorts first.
+	SELECT min(player_id), count(*) INTO l_player_id, l_candidates FROM player
 	WHERE lower(full_name(first_name, last_name)) = lower(p_name)
-	AND (p_date >= dob + (INTERVAL '10 year') OR dob IS NULL OR p_date IS NULL)
-	ORDER BY dob, player_id;
+	AND (p_date >= dob + (INTERVAL '10 year') OR dob IS NULL OR p_date IS NULL);
+	IF l_candidates > 1 THEN
+		RAISE EXCEPTION 'Ambiguous player %: % candidates; resolve with verified identity data', p_name, l_candidates;
+	END IF;
 	IF l_player_id IS NOT NULL THEN
 		RETURN l_player_id;
 	END IF;

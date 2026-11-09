@@ -64,7 +64,14 @@ Tennis Abstract/Sackmann IDs.
 
 Identity resolution checks normalized names (including explicit `player_alias`
 entries), birth dates and country against a mapped player before accepting that
-mapping. ESPN biography responses must also agree with the requested identity.
+mapping. ESPN biographies are fetched before resolution, including for names
+already present and Tennis Abstract-backed matches with ESPN evidence. Missing
+or conflicting biography data blocks the import. A name without a mapped ID or
+birth date is insufficient; ambiguous candidates are rejected, not duplicated.
+A Jr./Sr. spelling difference is accepted only with an identical known birth date.
+Multiple ESPN athlete IDs sharing a normalized name block collection rather than
+being collapsed. Recollect old staged snapshots to include this evidence.
+ESPN biography responses must also agree with the requested identity.
 Conflicts are reported in `validation.json` and block the write transaction.
 A knockout match that shares a participant with a different stored pairing in
 the same event/season/round is rejected as an identity conflict. The bracket
@@ -103,3 +110,6 @@ it never applies the repair. It uses ESPN's complete results fallback and leaves
 raw statistics absent. An expected 17-insert preview does not authorize an import:
 after the approved correction, run a fresh ordinary `--plan collection.json`
 against the corrected production database and review validation before applying.
+
+See [the namesake audit](PLAYER-IDENTITY-AUDIT.md) for the Damm case, the legacy
+SQL name-resolution guard, and the remaining production maintenance work.
